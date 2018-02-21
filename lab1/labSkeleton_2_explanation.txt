@@ -1,0 +1,1 @@
+For this problem four diners needed to grab forks at the same time. In this solution we create a pthread_cond_t the size of the number of diners. Using pthread_cond_wait on the current diner's turn and lockking the odd one's out we managed to solve this problem. 
