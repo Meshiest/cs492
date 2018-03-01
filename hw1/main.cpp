@@ -9,10 +9,8 @@ typedef struct product {
   int id;
   int life;
   time_t timestamp;
+  time_t timestampmicro;
 } product;
-
-// function to make a new_product
-product new_product();
 
 // need to put input params into global vars
 int num_prod; // number of produce threads
@@ -22,6 +20,30 @@ int maxq_size; // size of q that stores for both prod and con
 int algo_type; // 0: first-come-first-serve, 1: round-robin
 int quant; // quantum for round-robin algo
 int seed; // seed for rng
+
+// function to make a new_product
+product new_product() {
+  static int pid = 0; // this way will be unique
+  product p;
+
+  // set product ID
+  p.id = pid++;
+  srand(seed);
+  p.life = random() % 1024;
+
+  // time stamp
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  p.timestamp = tv.tv_sec; // timestamp no seconds
+  p.timestampmicro = tv.tv_usec; // microseconds
+
+  return p;
+}
+
+// tracker variables
+int p_id = 0, c_id = 0; // to keep track of producer/consumer ids
+int numproduced, numconsumed; // keep track of number of things products and consumed
+int q_size; // current q_size
 
 product* queue; // the queue of products
 
@@ -41,9 +63,56 @@ void init_threads() {
   pthread_cond_init(&empty_queue, NULL);
 }
 
+void clean_threads() {
+  pthread_mutex_destroy(&producer_mutex);
+  pthread_mutex_destroy(&consumer_mutex);
+  pthread_mutex_destroy(&queue_mutex);
+  pthread_cond_destroy(&full_queue);
+  pthread_cond_destroy(&empty_queue);
+}
+
+// queue functions
+int push(product prod) { // pushes to queue
+  pthread_mutex_lock(&queue_mutex); // lock to avoid deadlock
+
+  if(q_size == 0) { // nothing in queue yet
+    queue[q_size++] = prod;
+  } else {
+    // move everything
+    for(int i = q_size; i > 0; --i) {
+      queue[i] = queue[i-1];
+    }
+
+    //put in new product and increase size
+    queue[0] = prod;
+    q_size++;
+  }
+
+  // release the lock
+  pthread_mutex_unlock(&queue_mutex);
+  return 0;
+}
+
+product pop() {
+  pthread_mutex_lock(&queue_mutex); // mutex lock
+
+  // get end of queue
+  product prod = queue[--q_size];
+
+  // unlock mutex
+  pthread_mutex_unlock(&queue_mutex);
+  
+  return prod;
+}
+
 // functions needed
-void* produce(void*);
-void* consume(void*);
+void* produce(int id) {
+  return NULL;
+}
+
+void* consume(int id) {
+  return NULL;
+}
 
 int main(int argc, char** argv) {
   
@@ -71,6 +140,15 @@ int main(int argc, char** argv) {
   queue = (product *) calloc(maxq_size, sizeof(product));
   // init all threads knowing that we made it this far
   init_threads();
-  
+
+  // creat proper number of threads and do something with them can do this in consume function 
+  // do proper algo too 
+  pthread_t thread[num_prod + num_consum];
+
+  // clean up the threads
+  clean_threads();
+
+  // print min, max turnarounds
+  // print min and max wait times
   return 0;
 }
