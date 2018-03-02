@@ -9,7 +9,7 @@ typedef struct product {
   int id;
   int life;
   time_t timestamp;
-  time_t timestampmicro;
+  time_t timestampms;
 } product;
 
 // need to put input params into global vars
@@ -35,7 +35,7 @@ product new_product() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   p.timestamp = tv.tv_sec; // timestamp no seconds
-  p.timestampmicro = tv.tv_usec; // microseconds
+  p.timestampms = tv.tv_usec; // need ms too 
 
   return p;
 }
@@ -71,7 +71,7 @@ void clean_threads() {
   pthread_cond_destroy(&empty_queue);
 }
 
-// queue functions
+// queue functions screw making an actual queue 
 int push(product prod) { // pushes to queue
   pthread_mutex_lock(&queue_mutex); // lock to avoid deadlock
 
@@ -107,11 +107,76 @@ product pop() {
 
 // functions needed
 void* produce(int id) {
-  return NULL;
+  while(num_prod < max_prod) {
+    // try to avoid a deadlock by locking mutex
+    pthread_mutex_lock(&producer_mutex);
+
+    // check if queue is full if it is we need to wait till its not
+    while(q_size >= maxq_size) {
+      pthread_cond_wait(&full_queue, &producer_mutex);
+    }
+
+    if(num_prod < max_prod) {
+      product new_prod = new_product();
+      push(new_prod); // make new product push to queue
+      printf("Producer %i: Produced product %i at time", id, new_prod.id);
+      // need to print time here
+      char buffer[30];
+      //get product time stamp
+      strftime(buffer, 30, "%T", localtime(&new_prod.timestamp));
+      // print time stamp don't forget to add ms in case those matter
+      printf("%s:%ld\n", buffer, new_prod.timestampms);
+      numproduced++;
+    }
+    
+    // signal consumers cause stuff in queue
+    pthread_cond_signal(&empty_queue);
+    pthread_mutex_unlock(&producer_mutex);
+    // 100 ms sleep 
+    usleep(100*100);
+  }
+
+  pthread_exit(NULL);
 }
 
 void* consume(int id) {
-  return NULL;
+  while(num_consum < max_prod) {
+    // no deadlocks pls
+    pthread_mutex_lock(&consumer_mutex); 
+
+    // while nothing in queue wait for producer
+    while(q_size <= 0) {
+      pthread_cond_wait(&empty_queue, &consumer_mutex);
+    }
+
+    product prod = pop();
+
+    // round robin algo 
+    if(prod.life >= quant && algo_type == 1) {
+      prod.life -= quant;
+
+      // do math here for wait time and max min time
+      push(prod);
+    } else {
+      // do other algo here
+      
+      printf("consumer %i: Has consumed product %i at time ", id, prod.id);
+      // print time here
+
+      // calulate turn around time here
+      
+      numconsumed++;
+    }
+
+    // queue no longer full tell producer
+    pthread_cond_signal(&full_queue);
+
+    pthread_mutex_unlock(&consumer_mutex);
+    //sleep for 100 ms
+    usleep(100*100);
+  }
+
+  pthread_exit(NULL);
 }
 
 int main(int argc, char** argv) {
