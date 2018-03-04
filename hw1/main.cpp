@@ -106,7 +106,7 @@ product pop() {
 }
 
 // functions needed
-void* produce(int id) {
+void* produce(void* id) {
   while(num_prod < max_prod) {
     // try to avoid a deadlock by locking mutex
     pthread_mutex_lock(&producer_mutex);
@@ -119,7 +119,7 @@ void* produce(int id) {
     if(num_prod < max_prod) {
       product new_prod = new_product();
       push(new_prod); // make new product push to queue
-      printf("Producer %i: Produced product %i at time", id, new_prod.id);
+      printf("Producer %i: Produced product %i at time", *(int*)id, new_prod.id);
       // need to print time here
       char buffer[30];
       //get product time stamp
@@ -139,7 +139,7 @@ void* produce(int id) {
   pthread_exit(NULL);
 }
 
-void* consume(int id) {
+void* consume(void* id) {
   while(num_consum < max_prod) {
     // no deadlocks pls
     pthread_mutex_lock(&consumer_mutex); 
@@ -160,7 +160,7 @@ void* consume(int id) {
     } else {
       // do other algo here
       
-      printf("consumer %i: Has consumed product %i at time ", id, prod.id);
+      printf("consumer %i: Has consumed product %i at time ", *(int*)id, prod.id);
       // print time here
 
       // calulate turn around time here
@@ -206,12 +206,31 @@ int main(int argc, char** argv) {
   // init all threads knowing that we made it this far
   init_threads();
 
-  // creat proper number of threads and do something with them can do this in consume function 
+  // create proper number of threads and do something with them can do this in consume function 
   // do proper algo too 
-  pthread_t thread[num_prod + num_consum];
+  
+  int num = num_consum + num_prod;
+  int id[num];
+  pthread_t thread[num];
+
+  for(int i = 0; i < num_prod; i++) {
+    id[i] = i;
+    pthread_create(&thread[i], NULL, produce, &id[i]);
+  }
+
+  for(int i = 0; i < num_consum; i++) {
+    id[i + num_prod] = i;
+    pthread_create(&thread[i + num_prod], NULL, consume, &id[i + num_prod]);
+  }
+
+  for(int i = 0; i < num; i++) {
+    pthread_join(thread[i], NULL);
+  }
 
   // clean up the threads
   clean_threads();
+
+  pthread_exit(0);
 
   // print min, max turnarounds
   // print min and max wait times
