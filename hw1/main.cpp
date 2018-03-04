@@ -182,8 +182,8 @@ void* consume(int id) {
 int main(int argc, char** argv) {
   
   if(argc != 8) {
-    printf("Wrong usage expected: %s <num producer threads> <num consumer threads> <total num of products> <size of queue to store products> <type of scheduling algorithim: 0 || 1> <value of qauntum seed for round robin> <seed for random num gen>\n", argv[0]);
-    return -1;
+    fprintf(stderr, "usage: %s <num producer threads> <num consumer threads> <total num of products> <size of queue to store products> <type of scheduling algorithim: 0 || 1> <value of quantum seed for round robin> <seed for random num gen>\n", argv[0]);
+    return 1;
   }
 
   // grab inputs conver to ints
@@ -193,9 +193,9 @@ int main(int argc, char** argv) {
   maxq_size = atoi(argv[4]);
   algo_type = atoi(argv[5]);
   
-  if(algo_type != 0 || algo_type != 1) {
-    printf("Algo type must be 0 or 1 instead received %d\n", algo_type);
-    return -1;
+  if(algo_type != 0 && algo_type != 1) {
+    fprintf(stderr, "Algo type must be 0 or 1 instead received %d\n", algo_type);
+    return 1;
   }
 
   quant = atoi(argv[6]);
