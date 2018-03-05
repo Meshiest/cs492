@@ -160,17 +160,16 @@ void printtime() {
   //get current time
   char buffer[30];
   struct timeval tv;
-  time_t cur;
   gettimeofday(&tv, NULL);
   // grab time into buffer
   strftime(buffer, 30, "%T", localtime(&tv.tv_sec));
   // print time added with ms
-  printf("%s:%d\n", buffer, tv.tv_usec);
+  printf("%s:%ld\n", buffer, tv.tv_usec);
 }
 
 // functions needed
 void* produce(void* id) {
-  while(num_prod < max_prod) {
+  while(numproduced < max_prod) {
     // try to avoid a deadlock by locking mutex
     pthread_mutex_lock(&producer_mutex);
 
@@ -179,7 +178,7 @@ void* produce(void* id) {
       pthread_cond_wait(&full_queue, &producer_mutex);
     }
 
-    if(num_prod < max_prod) {
+    if(numproduced < max_prod) {
       product new_prod = new_product();
       push(new_prod); // make new product push to queue
       // need to print time here
@@ -204,7 +203,9 @@ void* produce(void* id) {
 }
 
 void* consume(void* id) {
-  while(num_consum < max_prod) {
+  
+  while(numconsumed < max_prod) {
+    //printf("num_cons: %d, max: %d\n", numconsumed, max_prod);
     // no deadlocks pls
     pthread_mutex_lock(&consumer_mutex); 
 
@@ -225,13 +226,13 @@ void* consume(void* id) {
       calcwaittime(prod);
       push(prod);
     } else {
-      // do other algo here
+      // do other algo herep
       for(int i = 0; i < prod.life; i++) { // call fib q times
         fib(10);
       }
       printf("consumer %i: Has consumed product %i at time ", *(int*)id, prod.id);
       // print time here
-
+      printtime();
       // calulate turn around time here
       calcturnaround(prod);
       numconsumed++;
@@ -284,12 +285,12 @@ int main(int argc, char** argv) {
 
   for(int i = 0; i < num_prod; i++) {
     id[i] = i;
-    pthread_create(&thread[i], NULL, produce, &id[i]);
+    pthread_create(&thread[i], NULL, &produce, &id[i]);
   }
 
   for(int i = 0; i < num_consum; i++) {
     id[i + num_prod] = i;
-    pthread_create(&thread[i + num_prod], NULL, consume, &id[i + num_prod]);
+    pthread_create(&thread[i + num_prod], NULL, &consume, &id[i + num_prod]);
   }
 
   for(int i = 0; i < num; i++) {
@@ -299,7 +300,7 @@ int main(int argc, char** argv) {
   // clean up the threads
   clean_threads();
 
-  printf("\n The minimum turnaround time is: %ld\n", min_turn);
+  printf("\nThe minimum turnaround time is: %ld\n", min_turn);
   printf("The maximum turnaround time is: %ld\n", max_turn);
   printf("The minimum wait time is: %ld\n", min_wait);
   printf("The maximum wait time is: %ld\n", max_wait);
