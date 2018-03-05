@@ -119,13 +119,12 @@ void* produce(void* id) {
     if(num_prod < max_prod) {
       product new_prod = new_product();
       push(new_prod); // make new product push to queue
-      printf("Producer %i: Produced product %i at time", *(int*)id, new_prod.id);
       // need to print time here
       char buffer[30];
       //get product time stamp
       strftime(buffer, 30, "%T", localtime(&new_prod.timestamp));
       // print time stamp don't forget to add ms in case those matter
-      printf("%s:%ld\n", buffer, new_prod.timestampms);
+      printf("Producer %i: Produced product %i at time %s:%ld\n", *(int*)id, new_prod.id, buffer, new_prod.timestampms);
       numproduced++;
     }
     
@@ -160,7 +159,7 @@ void* consume(void* id) {
     } else {
       // do other algo here
       
-      printf("consumer %i: Has consumed product %i at time ", *(int*)id, prod.id);
+      printf("consumer %i: Has consumed product %i at time \n", *(int*)id, prod.id);
       // print time here
 
       // calulate turn around time here
