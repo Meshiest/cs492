@@ -123,7 +123,7 @@ void calcturnaround(product prod) {
   gettimeofday(&tv, NULL);
   // get time difference between two 
   long int s = tv.tv_sec - prod.timestamp;
-  long int ms = tv.tv_sec - prod.timestampms;
+  long int ms = tv.tv_usec - prod.timestampms;
   // add them to one time value
   ms += s * 100000;
 
@@ -184,11 +184,11 @@ void* produce(void* id) {
       // need to print time here
       printf("Producer %i: Produced product %i at ", *(int*)id, new_prod.id);
       printtime();
-      char buffer[30];
+      //char buffer[30];
       //get product time stamp
-      strftime(buffer, 30, "%T", localtime(&new_prod.timestamp));
+      //strftime(buffer, 30, "%T", localtime(&new_prod.timestamp));
       // print time stamp don't forget to add ms in case those matter
-      printf("%s:%ld\n", buffer, new_prod.timestampms);
+      //printf("%s:%ld\n", buffer, new_prod.timestampms);
       numproduced++;
     }
     
