@@ -40,10 +40,21 @@ product new_product() {
   return p;
 }
 
+// fibonacciiiii 
+int fib(int num) {
+  if(num <= 1) {
+    return num;
+  }
+  
+  return fib(num-1) + fib(num-2);
+}
+
 // tracker variables
 int p_id = 0, c_id = 0; // to keep track of producer/consumer ids
 int numproduced, numconsumed; // keep track of number of things products and consumed
 int q_size; // current q_size
+long int min_turn, max_turn; // turn around times
+long int min_wait, max_wait; // wait times
 
 product* queue; // the queue of products
 
@@ -105,6 +116,58 @@ product pop() {
   return prod;
 }
 
+// time utility function
+void calcturnaround(product prod) {
+  // get new time
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  // get time difference between two 
+  long int s = tv.tv_sec - prod.timestamp;
+  long int ms = tv.tv_sec - prod.timestampms;
+  // add them to one time value
+  ms += s * 100000;
+
+  if(ms <= 0) {
+    return;
+  }
+
+  if(min_turn == 0 || ms < min_turn) {
+    min_turn = ms;
+  }
+  if(ms > max_turn) {
+    max_turn = ms;
+  }
+}
+
+void calcwaittime(product p) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  long int s = tv.tv_sec - p.timestamp;
+  long int ms = tv.tv_usec - p.timestampms;
+
+  ms += s * 100000; // add seconds to microseconds
+
+  if (ms <= 0)
+    return;
+
+  if (min_wait == 0 || ms < min_wait)
+    min_wait = ms;
+  if (ms > max_wait)
+    max_wait = ms;
+}
+
+void printtime() {
+  //get current time
+  char buffer[30];
+  struct timeval tv;
+  time_t cur;
+  gettimeofday(&tv, NULL);
+  // grab time into buffer
+  strftime(buffer, 30, "%T", localtime(&tv.tv_sec));
+  // print time added with ms
+  printf("%s:%d\n", buffer, tv.tv_usec);
+}
+
 // functions needed
 void* produce(void* id) {
   while(num_prod < max_prod) {
@@ -120,11 +183,13 @@ void* produce(void* id) {
       product new_prod = new_product();
       push(new_prod); // make new product push to queue
       // need to print time here
+      printf("Producer %i: Produced product %i at ", *(int*)id, new_prod.id);
+      printtime();
       char buffer[30];
       //get product time stamp
       strftime(buffer, 30, "%T", localtime(&new_prod.timestamp));
       // print time stamp don't forget to add ms in case those matter
-      printf("Producer %i: Produced product %i at time %s:%ld\n", *(int*)id, new_prod.id, buffer, new_prod.timestampms);
+      printf("%s:%ld\n", buffer, new_prod.timestampms);
       numproduced++;
     }
     
@@ -153,17 +218,22 @@ void* consume(void* id) {
     // round robin algo 
     if(prod.life >= quant && algo_type == 1) {
       prod.life -= quant;
-
+      for(int i = 0; i < quant; i++) { // call fib q times
+        fib(10);
+      }
       // do math here for wait time and max min time
+      calcwaittime(prod);
       push(prod);
     } else {
       // do other algo here
-      
-      printf("consumer %i: Has consumed product %i at time \n", *(int*)id, prod.id);
+      for(int i = 0; i < prod.life; i++) { // call fib q times
+        fib(10);
+      }
+      printf("consumer %i: Has consumed product %i at time ", *(int*)id, prod.id);
       // print time here
 
       // calulate turn around time here
-      
+      calcturnaround(prod);
       numconsumed++;
     }
 
@@ -229,6 +299,11 @@ int main(int argc, char** argv) {
   // clean up the threads
   clean_threads();
 
+  printf("\n The minimum turnaround time is: %ld\n", min_turn);
+  printf("The maximum turnaround time is: %ld\n", max_turn);
+  printf("The minimum wait time is: %ld\n", min_wait);
+  printf("The maximum wait time is: %ld\n", max_wait);
+  
   pthread_exit(0);
 
   // print min, max turnarounds
