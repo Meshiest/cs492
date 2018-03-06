@@ -1,0 +1,62 @@
+Preface:
+In this homework assignment, we compare the running times of two scheduling algorithms: First Come First Serve and Round Robin.
+
+With a large enough quantum, the Round Robin algorithm performs similarly to First Come First Serve. This is because for each large quantum, one product can be consumed in one quantum, so this acts exactly like FCFS.
+
+With a small quantum, we can repeatedly finish partial tasks in very small increments, resulting in a long time of wait but, given that the products are similar in complexity, finish almost all at once. Context switching may be an inhibiting factor to performance here.
+
+In First Come First Serve, the order of the products can affect average turnaround time greatly. If the first task takes 100 time units and the second task only takes 1, the average wait time would be (100 + 101)/2 = 100.5, whereas if the first, smaller task came first, the average time is only (1 + 101)/2 = 51, which is almost half the time. This is when the round robin algorithm can come in handy, because with a correctly chosen quantum, we won't spend all the time on the larger task, and will switch accordingly. However, we have to keep in mind the context switching time as well. As the quantum approaches 0, the work will not be done because all the quantum time is spent context switching between the threads.
+
+Analysis:
+After running some analysis, we concluded that first come first serve is highly efficient compared to the likes of Round Robin when involving producers and consumers operating on products in a queue. Although round robin performs better with a larger quantum, first come first serve still proves to operate significantly better. The average times increase dramatically when increasing the number of products from 100 to 1000 (during Round Robin), even when the number of consumer and producer threads and the limit of products in the queue is increased. One difficulty regarding the program was finding a way to calculate/ implement producer and consumer throughput.  Below are the results of a trial, testing FCFS and Round Robin.
+
+
+Test Results:
+
+Parameters: 4 4 100 10 0 1 1
+The minimum turnaround time is: 207 us
+The maximum turnaround time is: 2712 us
+The minimum wait time is: 206 us
+The maximum wait time is: 2710 us
+The pthro time is: 4 produced per min
+The cthro time is: 4 consumed per min
+
+Parameters: 500 200 500 500 0 1 5
+The minimum turnaround time is: 5990 us
+The maximum turnaround time is: 166282 us
+The minimum wait time is: 5988 us
+The maximum wait time is: 166281 us
+The pthro time is: 20 produced per min
+The cthro time is: 20 consumed per min
+
+Parameters: 4 4 100 10 1 50 5
+The minimum turnaround time is: 33 us
+The maximum turnaround time is: 439 us
+The minimum wait time is: 32 us
+The maximum wait time is: 437 us
+The pthro time is: 4 produced per min
+The cthro time is: 4 consumed per min
+
+Parameters: 4 4 100 10 1 50 5
+The minimum turnaround time is: 15 us
+The maximum turnaround time is: 250 us
+The minimum wait time is: 13 us
+The maximum wait time is: 247 us
+The pthro time is: 4 produced per min
+The cthro time is: 4 consumed per min
+
+Parameters: 500 200 500 500 1 1 5
+The minimum turnaround time is: 5168 us
+The maximum turnaround time is: 29705 us
+The minimum wait time is: 5167 us
+The maximum wait time is: 29703 us
+The pthro time is: 20 produced per min
+The cthro time is: 20 consumed per min
+
+Parameters: 500 200 500 500 1 50 5
+The minimum turnaround time is: 5494 us
+The maximum turnaround time is: 37879 us
+The minimum wait time is: 5493 us
+The maximum wait time is: 37878 us
+The pthro time is: 20 produced per min
+The cthro time is: 20 consumed per min

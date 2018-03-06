@@ -56,6 +56,7 @@ int numproduced, numconsumed; // keep track of number of things products and con
 int q_size; // current q_size
 long long min_turn, max_turn; // turn around times
 long long min_wait, max_wait; // wait times
+long long pthro, cthro; // throughput for prodcuers and consumers
 
 product* queue; // the queue of products
 
@@ -234,19 +235,19 @@ void* consume(void* id) {
       for(int i = 0; i < quant; i++) { // call fib q times
         fib(10);
       }
-      // do math here for wait time and max min time
-      calcwaittime(prod);
     } else {
       // do other algo herep
       for(int i = 0; i < prod.life; i++) { // call fib q times
         fib(10);
       }
-      // calulate turn around time here
-      calcturnaround(prod);
+
     }
 
     numconsumed++;
-
+    // do math here for wait time and max min time
+    calcwaittime(prod);
+    // calulate turn around time here
+    calcturnaround(prod);
     char buffer[30];
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -314,15 +315,31 @@ int main(int argc, char** argv) {
   int id[num];
   pthread_t thread[num];
 
+  // get current time
+  struct timeval tv1;
+  gettimeofday(&tv1, NULL);
+ 
   for(int i = 0; i < num_prod; i++) {
     id[i] = i;
     pthread_create(&thread[i], NULL, &produce, &id[i]);
   }
+  
+  // divide num of produced by time
+  struct timeval af1;
+  gettimeofday(&af1, NULL);
+  pthro = ((tv1.tv_sec - af1.tv_usec)/60000000);
 
+  struct timeval tv2;
+  gettimeofday(&tv2, NULL);
+  
   for(int i = 0; i < num_consum; i++) {
     id[i + num_prod] = i;
     pthread_create(&thread[i + num_prod], NULL, &consume, &id[i + num_prod]);
   }
+
+  struct timeval af2;
+  gettimeofday(&af2, NULL);
+  cthro = ((tv1.tv_sec - af2.tv_usec)/60000000);
 
   for(int i = 0; i < num; i++) {
     pthread_join(thread[i], NULL);
@@ -335,6 +352,8 @@ int main(int argc, char** argv) {
   printf("The maximum turnaround time is: %lld us\n", max_turn);
   printf("The minimum wait time is: %lld us\n", min_wait);
   printf("The maximum wait time is: %lld us\n", max_wait);
+  printf("The pthro time is: %lld produced per min\n", numproduced/pthro);
+  printf("The cthro time is: %lld consumed per min\n", numconsumed/cthro);
   
   pthread_exit(0);
 
