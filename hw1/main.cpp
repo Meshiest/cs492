@@ -9,7 +9,7 @@ typedef struct product {
   int id;
   int life;
   time_t timestamp;
-  time_t timestampms;
+  time_t timestampus;
 } product;
 
 // need to put input params into global vars
@@ -17,6 +17,7 @@ int num_prod; // number of produce threads
 int num_consum; // number of consumer threads
 int max_prod; // the maxium number of products to be generated
 int maxq_size; // size of q that stores for both prod and con
+int real_size; // actual size of the queue
 int algo_type; // 0: first-come-first-serve, 1: round-robin
 int quant; // quantum for round-robin algo
 int seed; // seed for rng
@@ -35,7 +36,7 @@ product new_product() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   p.timestamp = tv.tv_sec; // timestamp no seconds
-  p.timestampms = tv.tv_usec; // need ms too 
+  p.timestampus = tv.tv_usec; // need us too 
 
   return p;
 }
@@ -53,8 +54,8 @@ int fib(int num) {
 int p_id = 0, c_id = 0; // to keep track of producer/consumer ids
 int numproduced, numconsumed; // keep track of number of things products and consumed
 int q_size; // current q_size
-long int min_turn, max_turn; // turn around times
-long int min_wait, max_wait; // wait times
+long long min_turn, max_turn; // turn around times
+long long min_wait, max_wait; // wait times
 
 product* queue; // the queue of products
 
@@ -80,11 +81,17 @@ void clean_threads() {
   pthread_mutex_destroy(&queue_mutex);
   pthread_cond_destroy(&full_queue);
   pthread_cond_destroy(&empty_queue);
+  free(queue);
 }
 
 // queue functions screw making an actual queue 
 int push(product prod) { // pushes to queue
   pthread_mutex_lock(&queue_mutex); // lock to avoid deadlock
+
+  if(maxq_size == 0 && q_size >= real_size) {
+    real_size *= 2;
+    queue = (product *) realloc(queue, sizeof(product) * real_size);
+  }
 
   if(q_size == 0) { // nothing in queue yet
     queue[q_size++] = prod;
@@ -123,19 +130,19 @@ void calcturnaround(product prod) {
   gettimeofday(&tv, NULL);
   // get time difference between two 
   long int s = tv.tv_sec - prod.timestamp;
-  long int ms = tv.tv_usec - prod.timestampms;
+  long int us = tv.tv_usec - prod.timestampus;
   // add them to one time value
-  ms += s * 100000;
+  us += s * 1e3;
 
-  if(ms <= 0) {
+  if(us <= 0) {
     return;
   }
 
-  if(min_turn == 0 || ms < min_turn) {
-    min_turn = ms;
+  if(min_turn == 0 || us < min_turn) {
+    min_turn = us;
   }
-  if(ms > max_turn) {
-    max_turn = ms;
+  if(us > max_turn) {
+    max_turn = us;
   }
 }
 
@@ -143,28 +150,17 @@ void calcwaittime(product p) {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   long int s = tv.tv_sec - p.timestamp;
-  long int ms = tv.tv_usec - p.timestampms;
+  long int us = tv.tv_usec - p.timestampus;
 
-  ms += s * 100000; // add seconds to microseconds
+  us += s * 1e6; // add seconds to microseconds
 
-  if (ms <= 0)
+  if (us <= 0)
     return;
 
-  if (min_wait == 0 || ms < min_wait)
-    min_wait = ms;
-  if (ms > max_wait)
-    max_wait = ms;
-}
-
-void printtime() {
-  //get current time
-  char buffer[30];
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  // grab time into buffer
-  strftime(buffer, 30, "%T", localtime(&tv.tv_sec));
-  // print time added with ms
-  printf("%s:%ld\n", buffer, tv.tv_usec);
+  if (min_wait == 0 || us < min_wait)
+    min_wait = us;
+  if (us > max_wait)
+    max_wait = us;
 }
 
 // functions needed
@@ -174,7 +170,7 @@ void* produce(void* id) {
     pthread_mutex_lock(&producer_mutex);
 
     // check if queue is full if it is we need to wait till its not
-    while(q_size >= maxq_size) {
+    while(maxq_size != 0 && q_size >= maxq_size) {
       pthread_cond_wait(&full_queue, &producer_mutex);
     }
 
@@ -182,13 +178,15 @@ void* produce(void* id) {
       product new_prod = new_product();
       push(new_prod); // make new product push to queue
       // need to print time here
-      printf("Producer %i: Produced product %i at ", *(int*)id, new_prod.id);
-      printtime();
-      //char buffer[30];
-      //get product time stamp
-      //strftime(buffer, 30, "%T", localtime(&new_prod.timestamp));
-      // print time stamp don't forget to add ms in case those matter
-      //printf("%s:%ld\n", buffer, new_prod.timestampms);
+      //get current time
+      char buffer[30];
+      struct timeval tv;
+      gettimeofday(&tv, NULL);
+      // grab time into buffer
+      strftime(buffer, 30, "%T", localtime(&tv.tv_sec));
+      // print time added with ms
+
+      printf("[+ PRODUCE %4i ]: Produced product %-4i at time %s:%0.6ld\n", *(int*)id, new_prod.id,  buffer, tv.tv_usec);
       numproduced++;
     }
     
@@ -196,7 +194,7 @@ void* produce(void* id) {
     pthread_cond_signal(&empty_queue);
     pthread_mutex_unlock(&producer_mutex);
     // 100 ms sleep 
-    usleep(100*100);
+    usleep(100*1000);
   }
 
   pthread_exit(NULL);
@@ -209,9 +207,15 @@ void* consume(void* id) {
     // no deadlocks pls
     pthread_mutex_lock(&consumer_mutex); 
 
-    // while nothing in queue wait for producer
-    while(q_size <= 0) {
+    // while nothing in queue wait for producer only if we have not produced the cap
+    while(q_size <= 0 && numconsumed < max_prod) {
       pthread_cond_wait(&empty_queue, &consumer_mutex);
+    }
+
+    // If we have finished producing, break out of the loop and unlock
+    if(numconsumed >= max_prod) {
+      pthread_mutex_unlock(&consumer_mutex);
+      break;
     }
 
     product prod = pop();
@@ -224,19 +228,24 @@ void* consume(void* id) {
       }
       // do math here for wait time and max min time
       calcwaittime(prod);
-      push(prod);
     } else {
       // do other algo herep
       for(int i = 0; i < prod.life; i++) { // call fib q times
         fib(10);
       }
-      printf("consumer %i: Has consumed product %i at time ", *(int*)id, prod.id);
-      // print time here
-      printtime();
       // calulate turn around time here
       calcturnaround(prod);
-      numconsumed++;
     }
+
+    numconsumed++;
+
+    char buffer[30];
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    // grab time into buffer
+    strftime(buffer, 30, "%T", localtime(&tv.tv_sec));
+    // print time added with ms
+    printf("[- CONSUME %4i ]: Consumed product %-4i at time %s:%0.6ld\n", *(int*)id, prod.id, buffer, tv.tv_usec);
 
     // queue no longer full tell producer
     pthread_cond_signal(&full_queue);
@@ -252,7 +261,7 @@ void* consume(void* id) {
 int main(int argc, char** argv) {
   
   if(argc != 8) {
-    fprintf(stderr, "usage: %s <num producer threads> <num consumer threads> <total num of products> <size of queue to store products> <type of scheduling algorithim: 0 || 1> <value of quantum seed for round robin> <seed for random num gen>\n", argv[0]);
+    fprintf(stderr, "usage: %s <num producer threads> <num consumer threads> <total num of products> <size of queue to store products> <type of scheduling algorithim: 0 || 1> <quantum value for round robin> <seed for random num gen>\n", argv[0]);
     return 1;
   }
 
@@ -261,6 +270,11 @@ int main(int argc, char** argv) {
   num_consum = atoi(argv[2]);
   max_prod = atoi(argv[3]);
   maxq_size = atoi(argv[4]);
+  real_size = maxq_size;
+
+  if(maxq_size == 0)
+    real_size = 8;
+
   algo_type = atoi(argv[5]);
   
   if(algo_type != 0 && algo_type != 1) {
@@ -271,8 +285,13 @@ int main(int argc, char** argv) {
   quant = atoi(argv[6]);
   seed = atoi(argv[7]);
 
+  if(quant == 0 && algo_type == 1) {
+    fprintf(stderr, "Quant must be larger than 0 %d\n", quant);
+    return 1;
+  }
+
   // make the queue the proper size
-  queue = (product *) calloc(maxq_size, sizeof(product));
+  queue = (product *) calloc(real_size, sizeof(product));
   // init all threads knowing that we made it this far
   init_threads();
 
@@ -300,10 +319,10 @@ int main(int argc, char** argv) {
   // clean up the threads
   clean_threads();
 
-  printf("\nThe minimum turnaround time is: %ld\n", min_turn);
-  printf("The maximum turnaround time is: %ld\n", max_turn);
-  printf("The minimum wait time is: %ld\n", min_wait);
-  printf("The maximum wait time is: %ld\n", max_wait);
+  printf("\nThe minimum turnaround time is: %ld us\n", min_turn);
+  printf("The maximum turnaround time is: %ld us\n", max_turn);
+  printf("The minimum wait time is: %ld us\n", min_wait);
+  printf("The maximum wait time is: %ld us\n", max_wait);
   
   pthread_exit(0);
 
