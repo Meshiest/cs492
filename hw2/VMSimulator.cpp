@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -25,19 +26,54 @@ public:
   VMSimulator(int argc, char** argv);
 
 private:
+  //const int MAX_MEM = 512;
+
   int _page_size;
   int _algo;
   bool _prepaging;
 
-  void LoadPList();
-  void LoadPTrace();
+  void LoadPList(string plist_path);
+  void LoadPTrace(string ptrace_path);
 
   void FIFO();
   void LRU();
   void Clock();
 };
 
+void VMSimulator::LoadPList(string plist_path) {
+
+  ifstream plist_file(plist_path);
+  if(!plist_file) {
+    plist_file.clear();
+    plist_file.open("plist.txt");
+
+    if(!plist_file) {
+      throw MyException("Error: Please give path to a plist file or have default file plist.txt in directory.");
+    }
+  }
+
+}
+
+void VMSimulator::LoadPTrace(string ptrace_path) {
+
+  ifstream ptrace_file(ptrace_path);
+  if(!ptrace_file) {
+    ptrace_file.clear();
+    ptrace_file.open("ptrace.txt");
+
+    if(!ptrace_file) {
+      throw MyException("Error: Please give path to a ptrace file or have default file ptrace.txt in directory.");
+    }
+  }
+
+}
+
 VMSimulator::VMSimulator(int argc, char** argv) {
+
+  this->LoadPList((string) argv[1]);
+
+  //this->LoadPTrace((string) argv[2]);
+
   istringstream iss;
   iss.str(((string) argv[3]));
 
