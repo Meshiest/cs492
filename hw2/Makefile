@@ -1,3 +1,4 @@
+.PHONY: all debug clean fclean re
 # Name of your program:
 NAME=VMSimulator
 
