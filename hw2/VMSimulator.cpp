@@ -31,7 +31,7 @@ void MyException::PrinterMsg() {
 }
 
 
-// calss for page
+// class for page
 class Page {
 
 public:
@@ -388,7 +388,7 @@ VMSimulator::VMSimulator(int argc, char** argv) {
 int main(int argc, char** argv) {
 
   if(argc != 6) {
-    cerr << "Error Invalid usage: <./VMSimulator> <plist> <ptrace> <page size> <page algo: FIFO | LRU | CLock> <pre_page: on(+) | off(-)>" << endl;
+    cerr << "Error Invalid usage: <" << *argv <<  "> <plist> <ptrace> <page size> <page algo: FIFO | LRU | CLock> <pre_page: on(+) | off(-)>" << endl;
     return -1;
   }
 
