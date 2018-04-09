@@ -1,3 +1,4 @@
+#include <algorithim>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -314,8 +315,8 @@ void VMSimulator::LoadPTrace(string ptrace_path) {
 
 // fifo function wip
 void VMSimulator::FIFO(Process* proc, int page_loc) {
-  int max_id = proc->getPage(p->getSize())->getNum();
-  int min_id = proc->getPage(0)->getNum();
+  int max_id = proc->getPage(proc->getSize())->getPageNum();
+  int min_id = proc->getPage(0)->getPageNum();
   int id;
   unsigned int cur;
 
