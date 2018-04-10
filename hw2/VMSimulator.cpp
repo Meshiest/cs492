@@ -1,4 +1,5 @@
-#include <algorithim>
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -92,6 +93,7 @@ public:
   int loadPages(int num, int algo, vector<int>& mem);
   Page* getPage(int page);
   int getSize();
+  int getID();
   int getPagesRemaining();
   void setPagesRemaining(int pages);
 
@@ -118,7 +120,7 @@ private:
 };
 
 // process constructor
-// page_num is reference so it changes the VMSimulator counter value
+// page_num is reference so it changes the VMSimulator pagNum value
 Process::Process(int pid, int size, int& page_num) {
   this->_pid = pid;
   this->_size = size;
@@ -169,6 +171,11 @@ Page* Process::getPage(int page_num) {
 // getter for proc size
 int Process::getSize() {
   return this->_size;
+}
+
+// getter for page id
+int Process::getID() {
+  return this->_pid;
 }
 
 // getter for num of remaining pages
@@ -257,7 +264,6 @@ class VMSimulator {
 
 public:
   VMSimulator(int argc, char** argv);
-  void run();
 
 private:
   // given construct
@@ -275,6 +281,11 @@ private:
   // counter
   unsigned long _counter;
 
+  vector<Process*> _processes;
+  int _process_count = 0;
+
+  int _page_fault;
+
   void LoadPList(string plist_path);
   void LoadPTrace(string ptrace_path);
 
@@ -282,36 +293,6 @@ private:
   void LRU(Process* proc, int page_loc);
   void Clock(Process* proc, int page_loc);
 };
-
-// will eventually load plist file
-void VMSimulator::LoadPList(string plist_path) {
-
-  ifstream plist_file(plist_path);
-  if(!plist_file) {
-    plist_file.clear();
-    plist_file.open("plist.txt");
-
-    if(!plist_file) {
-      throw MyException("Error: Please give path to a plist file or have default file plist.txt in directory.");
-    }
-  }
-
-}
-
-// will eventuall load ptrace file
-void VMSimulator::LoadPTrace(string ptrace_path) {
-
-  ifstream ptrace_file(ptrace_path);
-  if(!ptrace_file) {
-    ptrace_file.clear();
-    ptrace_file.open("ptrace.txt");
-
-    if(!ptrace_file) {
-      throw MyException("Error: Please give path to a ptrace file or have default file ptrace.txt in directory.");
-    }
-  }
-
-}
 
 // fifo function wip
 void VMSimulator::FIFO(Process* proc, int page_loc) {
@@ -347,12 +328,64 @@ void VMSimulator::Clock(Process* proc, int page_loc) {
 
 }
 
+// loads plist file
+void VMSimulator::LoadPList(string plist_path) {
+
+  ifstream plist_file(plist_path);
+  if(!plist_file) {
+    plist_file.clear();
+    plist_file.open("plist.txt");
+
+    if(!plist_file) {
+      throw MyException("Error: Please give path to a plist file or have default file plist.txt in directory.");
+    }
+  }
+
+  int first, second;
+  while(plist_file >> first >> second) {
+    this->_processes.push_back(new Process(first, second, this->_page_num));
+    this->_process_count++;
+  }
+
+ /*for(auto p: this->_processes) {
+    cout << p->getID() << " " << p->getSize() << endl;
+  }*/
+
+  plist_file.close();
+
+  for (int cur = 0; cur  < this->_process_count; cur++) {
+    this->_page_fault += this->_processes.at(cur)->loadPages((int) ceil((double) (this->_MAX_MEM / this->_page_size) / this->_process_count), this->_algo, this->_main_memory);
+  }
+
+}
+
+// loads ptrace file
+void VMSimulator::LoadPTrace(string ptrace_path) {
+
+  ifstream ptrace_file(ptrace_path);
+  if(!ptrace_file) {
+    ptrace_file.clear();
+    ptrace_file.open("ptrace.txt");
+
+    if(!ptrace_file) {
+      throw MyException("Error: Please give path to a ptrace file or have default file ptrace.txt in directory.");
+    }
+  }
+
+  double first, second, page;
+  Page* foundPage;
+  while(ptrace_file >> first >> second) {
+    page = (int) floor(second / this->_page_size);
+    foundPage = this->_processes.at(first)->getPage(page);
+    //cout << page << " " << foundPage << endl;
+
+    // perform algorithms we didn't implement
+  }
+
+}
+
 // constructor takes passed arguments handles properly
 VMSimulator::VMSimulator(int argc, char** argv) {
-
-  this->LoadPList((string) argv[1]);
-
-  this->LoadPTrace((string) argv[2]);
 
   istringstream iss;
   iss.str(((string) argv[3]));
@@ -383,6 +416,10 @@ VMSimulator::VMSimulator(int argc, char** argv) {
   } else {
     throw MyException("Error: Invalid prepaging operator.");
   }
+
+  this->LoadPList((string) argv[1]);
+
+  this->LoadPTrace((string) argv[2]);
 }
 
 int main(int argc, char** argv) {
