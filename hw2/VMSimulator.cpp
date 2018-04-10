@@ -1,8 +1,5 @@
 #include <algorithm>
-<<<<<<< HEAD
 #include <cmath>
-=======
->>>>>>> d94505291c0254c36a8ba82a800a23528d7058e9
 #include <fstream>
 #include <iostream>
 #include <string>
