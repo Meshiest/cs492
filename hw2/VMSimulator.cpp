@@ -284,7 +284,7 @@ private:
   vector<Process*> _processes;
   int _process_count = 0;
 
-  int _page_fault;
+  int _page_fault = 0;
 
   int getIndex(int search);
 
@@ -416,7 +416,67 @@ void VMSimulator::LRU(Process* proc, Page* page) {
 }
 
 void VMSimulator::Clock(Process* proc, int page_loc) {
+  Page* tmp;
+  Page* new_page;
+  int next_page_num;
 
+  for(;;proc->incrementIterator()) {
+
+    if(proc->getIterator() == proc->getEndIterator()) proc->resetIterator();
+
+    tmp = *(proc->getIterator());
+
+    if(!tmp->getValid()) {
+      proc->replacePage(tmp->getPageNum(), page_loc);
+      break;
+    }
+    else tmp->setValid(0);
+
+  }
+
+  if(this->_prepaging) {
+
+    if(!proc->getPagesRemaining()) {
+
+      for(unsigned int cur = 0; cur < proc->getSize(); cur++) {
+        new_page = proc->getPage(cur);
+
+        if(new_page->getPageNum() > page_loc && !proc->isInMemory(new_page->getPageNum())) {
+        next_page_num = new_page->getPageNum();
+        break;
+        }
+
+      }
+
+    }
+
+    for(;;proc->incrementIterator()) {
+
+      if (proc->getIterator() == proc->getEndIterator()) {
+        proc->resetIterator();
+      }
+
+      tmp = *(proc->getIterator());
+
+      if(tmp->getValid() == 0) {
+
+        if(!proc->getPagesRemaining()) {
+          proc->replacePage(tmp->getPageNum(), next_page_num);
+        }
+        else {
+          proc->replacePage(-1, next_page_num);
+        }
+
+        break;
+      }
+
+      else {
+        tmp->setValid(0);
+      }
+
+    }
+
+  }
 }
 
 // loads plist file
@@ -464,22 +524,45 @@ void VMSimulator::LoadPTrace(string ptrace_path) {
     }
   }
 
+  vector<int>::iterator it;
   double first, second, page;
-  Page* foundPage;
+  Page* found_page;
   while(ptrace_file >> first >> second) {
     page = (int) floor(second / this->_page_size);
-    foundPage = this->_processes.at(first)->getPage(page);
+    found_page = this->_processes.at(first)->getPage(page);
     //cout << page << " " << foundPage << endl;
 
-    // perform algorithms we didn't implement
-    if(this->_algo == 0) {
+    // perform page replacment algorithm
+    if(this->_algo == 2) {
 
-    } else if(this->_algo == 1) {
+      if(!this->_processes.at(first)->isInMemory(found_page->getPageNum())) {
+        this->_page_fault++;
+        this->Clock(this->_processes.at(first), found_page->getPageNum());
+      } else {
+        found_page->setValid(true);
+      }
 
-    } else {
+    } else if(this->_algo == 0 || this->_algo == 1) {
+      it = find(this->_main_memory.begin(), this->_main_memory.end(), found_page->getPageNum());
+
+      if(it == this->_main_memory.end()) {
+        this->_page_fault++;
+
+        if(this->_algo == 0) {
+          this->FIFO(this->_processes.at(first), found_page->getPageNum());
+        }
+        else if(this->_algo == 1) {
+          this->LRU(this->_processes.at(first), found_page);
+        }
+
+      } else {
+        found_page->updateTime(this->_counter);
+      }
 
     }
   }
+
+  cout << this->_page_fault << " swaps" << endl;
 
 }
 
@@ -519,6 +602,8 @@ VMSimulator::VMSimulator(int argc, char** argv) {
   this->LoadPList((string) argv[1]);
 
   this->LoadPTrace((string) argv[2]);
+
+  this->_main_memory.clear();
 }
 
 int main(int argc, char** argv) {
