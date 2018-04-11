@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -311,10 +312,10 @@ int VMSimulator::getIndex(int search) {
 
 // fifo function wip
 void VMSimulator::FIFO(Process* proc, int page_loc) {
-  int max_id = proc->getPage(proc->getSize())->getPageNum();
   int min_id = proc->getPage(0)->getPageNum();
-  int id;
   unsigned int cur, size = this->_main_memory.size();
+  int max_id = proc->getPage(proc->getSize()-1)->getPageNum();
+  int id;
 
   // insert into first index
   for(cur = 0; cur < size; cur++) {
@@ -345,7 +346,7 @@ void VMSimulator::FIFO(Process* proc, int page_loc) {
       proc->setPagesRemaining(1);
     }
 
-    for(cur = 0; cur < proc->getSize(); cur++) {
+    for(cur = 0; cur < (unsigned int) proc->getSize(); cur++) {
       if(proc->getPage(cur)->getPageNum() > page_loc && !proc->getPage(cur)->getValid()) break;
     }
 
@@ -438,7 +439,7 @@ void VMSimulator::Clock(Process* proc, int page_loc) {
 
     if(!proc->getPagesRemaining()) {
 
-      for(unsigned int cur = 0; cur < proc->getSize(); cur++) {
+      for(int cur = 0; cur < proc->getSize(); cur++) {
         new_page = proc->getPage(cur);
 
         if(new_page->getPageNum() > page_loc && !proc->isInMemory(new_page->getPageNum())) {
