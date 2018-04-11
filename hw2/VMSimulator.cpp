@@ -39,7 +39,7 @@ public:
   Page(int pnum);
   int getPageNum();
   bool getValid();
-  unsigned long getTimestamp();
+  unsigned long getTime();
   void updateTime(unsigned long& counter);
   void setValid(bool valid);
 
@@ -71,7 +71,7 @@ bool Page::getValid() {
 }
 
 // getter for time
-unsigned long Page::getTimestamp() {
+unsigned long Page::getTime() {
   return this->_access_time;
 }
 
@@ -286,23 +286,38 @@ private:
 
   int _page_fault;
 
+  int getIndex(int search);
+
   void LoadPList(string plist_path);
   void LoadPTrace(string ptrace_path);
 
   void FIFO(Process* proc, int page_loc);
-  void LRU(Process* proc, int page_loc);
+  void LRU(Process* proc, Page* page);
   void Clock(Process* proc, int page_loc);
 };
+
+int VMSimulator::getIndex(int search) {
+  int found_id = -1;
+
+  for(unsigned int cur = 0; cur < this->_main_memory.size(); cur++) {
+    if(this->_main_memory.at(cur) == search) {
+      found_id = cur;
+      break;
+    }
+  }
+
+  return found_id;
+}
 
 // fifo function wip
 void VMSimulator::FIFO(Process* proc, int page_loc) {
   int max_id = proc->getPage(proc->getSize())->getPageNum();
   int min_id = proc->getPage(0)->getPageNum();
   int id;
-  unsigned int cur;
+  unsigned int cur, size = this->_main_memory.size();
 
   // insert into first index
-  for(cur = 0; cur < this->_main_memory.size(); cur++) {
+  for(cur = 0; cur < size; cur++) {
     id = this->_main_memory.at(cur);
     if(id <= max_id && id >= min_id) break;
   }
@@ -317,10 +332,86 @@ void VMSimulator::FIFO(Process* proc, int page_loc) {
 
   if(this->_prepaging) {
 
+    if(!proc->getPagesRemaining()) {
+
+      for(cur = 0; cur < size; cur++) {
+        id = this->_main_memory.at(cur);
+
+        if(id >= min_id && id <= max_id) break;
+      }
+
+      this->_main_memory.erase(this->_main_memory.begin() + cur);
+      proc->getPage(id - min_id)->setValid(0);
+      proc->setPagesRemaining(1);
+    }
+
+    for(cur = 0; cur < proc->getSize(); cur++) {
+      if(proc->getPage(cur)->getPageNum() > page_loc && !proc->getPage(cur)->getValid()) break;
+    }
+
+    this->_main_memory.push_back(proc->getPage(cur)->getPageNum());
+    proc->getPage(cur)->setValid(1);
+    proc->setPagesRemaining(proc->getPagesRemaining() - 1);
   }
 }
 
-void VMSimulator::LRU(Process* proc, int page_loc) {
+void VMSimulator::LRU(Process* proc, Page* page) {
+
+  unsigned long min_up = ULONG_MAX;
+  int min_up_pid;
+  Page* temp;
+
+  for(int cur = 0; cur < proc->getSize(); cur++) {
+
+    temp = proc->getPage(cur);
+
+    if(temp->getValid() && temp->getTime() < min_up) {
+      min_up = temp->getTime();
+      min_up_pid = cur;
+    }
+  }
+
+  proc->getPage(min_up_pid)->setValid(0);
+  this->_main_memory.erase(this->_main_memory.begin() + getIndex(proc->getPage(min_up_pid)->getPageNum()));
+
+  this->_main_memory.push_back(page->getPageNum());
+  page->setValid(1);
+  page->updateTime(this->_counter);
+
+  if(this->_prepaging) {
+
+    if(proc->getPagesRemaining() == 0) {
+
+      min_up = ULONG_MAX;
+      for(int cur = 0; cur < proc->getSize(); cur++) {
+
+        temp = proc->getPage(cur);
+        if (temp->getValid() && temp->getTime() < min_up) {
+          min_up = temp->getTime();
+          min_up_pid = cur;
+        }
+
+      }
+
+      proc->getPage(min_up_pid)->setValid(0);
+      proc->getPage(min_up_pid)->updateTime(this->_counter);
+      this->_main_memory.erase(this->_main_memory.begin() + getIndex(proc->getPage(min_up_pid)->getPageNum()));
+      proc->setPagesRemaining(1);
+    }
+
+    for(int cur = 0; cur < proc->getSize(); cur++) {
+
+      if(proc->getPage(cur)->getPageNum() > page->getPageNum() && !proc->getPage(cur)->getValid()) {
+        this->_main_memory.push_back(proc->getPage(cur)->getPageNum());
+        proc->getPage(cur)->setValid(1);
+        proc->getPage(cur)->updateTime(this->_counter);
+        proc->setPagesRemaining(proc->getPagesRemaining() - 1);
+        break;
+      }
+
+    }
+
+  }
 
 }
 
@@ -348,13 +439,14 @@ void VMSimulator::LoadPList(string plist_path) {
   }
 
  /*for(auto p: this->_processes) {
-    cout << p->getID() << " " << p->getSize() << endl;
+    cout << proc->getID() << " " << proc->getSize() << endl;
   }*/
 
   plist_file.close();
 
   for (int cur = 0; cur  < this->_process_count; cur++) {
     this->_page_fault += this->_processes.at(cur)->loadPages((int) ceil((double) (this->_MAX_MEM / this->_page_size) / this->_process_count), this->_algo, this->_main_memory);
+    //cout << this->_main_memory[cur] << endl;;
   }
 
 }
@@ -380,6 +472,13 @@ void VMSimulator::LoadPTrace(string ptrace_path) {
     //cout << page << " " << foundPage << endl;
 
     // perform algorithms we didn't implement
+    if(this->_algo == 0) {
+
+    } else if(this->_algo == 1) {
+
+    } else {
+
+    }
   }
 
 }
