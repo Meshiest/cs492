@@ -166,6 +166,8 @@ int Process::loadPages(int num, int algo, vector<int>& mem) {
 
 // getter for page from all pages given index of page
 Page* Process::getPage(int page_num) {
+  //cout << "pn " << page_num << endl;
+  //cout << "size " << this->_page_table.size() << endl;
   return this->_page_table.at(page_num);
 }
 
@@ -174,7 +176,7 @@ int Process::getSize() {
   return this->_size;
 }
 
-// getter for page id
+// getter for page id mainly for testing only
 int Process::getID() {
   return this->_pid;
 }
@@ -279,26 +281,33 @@ private:
 
   // the vector of main memory
   vector<int> _main_memory;
-  // counter
+  // counter for processes internal var
   unsigned long _counter;
 
+  // list of processes whom each have list of pages
   vector<Process*> _processes;
-  int _process_count = 0;
 
+  int _process_count = 0;
+  // num of swaps
   int _page_fault = 0;
 
+  // get index of a specific process
   int getIndex(int search);
 
+  // loads plist data and performs any needed work with data
   void LoadPList(string plist_path);
+  // loads ptrace data and performs algo for correct inseration of data
   void LoadPTrace(string ptrace_path);
 
+  // the different algo methods
   void FIFO(Process* proc, int page_loc);
   void LRU(Process* proc, Page* page);
   void Clock(Process* proc, int page_loc);
 };
 
+// used to seaarch main memory for correct page
 int VMSimulator::getIndex(int search) {
-  int found_id = -1;
+  int found_id = -1; // to return if not found
 
   for(unsigned int cur = 0; cur < this->_main_memory.size(); cur++) {
     if(this->_main_memory.at(cur) == search) {
@@ -483,6 +492,8 @@ void VMSimulator::Clock(Process* proc, int page_loc) {
 // loads plist file
 void VMSimulator::LoadPList(string plist_path) {
 
+  // check the given path to plist file
+  // otherwise check for default file location
   ifstream plist_file(plist_path);
   if(!plist_file) {
     plist_file.clear();
@@ -493,18 +504,22 @@ void VMSimulator::LoadPList(string plist_path) {
     }
   }
 
+  // should be of format "int int" so read those in and create a new process for it
   int first, second;
   while(plist_file >> first >> second) {
     this->_processes.push_back(new Process(first, second, this->_page_num));
     this->_process_count++;
   }
 
- /*for(auto p: this->_processes) {
+  /*
+  this was for testing purposes
+  for(auto p: this->_processes) {
     cout << proc->getID() << " " << proc->getSize() << endl;
   }*/
 
   plist_file.close();
 
+  // for each process increase page swaps
   for (int cur = 0; cur  < this->_process_count; cur++) {
     this->_page_fault += this->_processes.at(cur)->loadPages((int) ceil((double) (this->_MAX_MEM / this->_page_size) / this->_process_count), this->_algo, this->_main_memory);
     //cout << this->_main_memory[cur] << endl;;
@@ -515,6 +530,8 @@ void VMSimulator::LoadPList(string plist_path) {
 // loads ptrace file
 void VMSimulator::LoadPTrace(string ptrace_path) {
 
+  // check the given path to plist file
+  // otherwise check for default file location
   ifstream ptrace_file(ptrace_path);
   if(!ptrace_file) {
     ptrace_file.clear();
@@ -525,30 +542,33 @@ void VMSimulator::LoadPTrace(string ptrace_path) {
     }
   }
 
+  // gonna need this for finding the correct position of page in main memory
   vector<int>::iterator it;
-  double first, second, page;
+  double first, second, page; // we do doubles from the file so we can avoid more type casting
+  // the found page
   Page* found_page;
-  while(ptrace_file >> first >> second) {
-    page = (int) floor(second / this->_page_size);
+  while(ptrace_file >> first >> second) { // while reading
+    page = (int) floor(second / this->_page_size); // store page we num we want
     found_page = this->_processes.at(first)->getPage(page);
-    //cout << page << " " << foundPage << endl;
+    //cout << page << " " << foundPage << endl; for testing
 
     // perform page replacment algorithm
-    if(this->_algo == 2) {
+    if(this->_algo == 2) { // clock
 
-      if(!this->_processes.at(first)->isInMemory(found_page->getPageNum())) {
+      if(!this->_processes.at(first)->isInMemory(found_page->getPageNum())) { // if not found in memory
         this->_page_fault++;
         this->Clock(this->_processes.at(first), found_page->getPageNum());
       } else {
         found_page->setValid(true);
       }
 
-    } else if(this->_algo == 0 || this->_algo == 1) {
-      it = find(this->_main_memory.begin(), this->_main_memory.end(), found_page->getPageNum());
+    } else if(this->_algo == 0 || this->_algo == 1) { // fifo and lru
+      it = find(this->_main_memory.begin(), this->_main_memory.end(), found_page->getPageNum()); // find spot
 
       if(it == this->_main_memory.end()) {
         this->_page_fault++;
 
+        // perform proper algo
         if(this->_algo == 0) {
           this->FIFO(this->_processes.at(first), found_page->getPageNum());
         }
@@ -557,12 +577,16 @@ void VMSimulator::LoadPTrace(string ptrace_path) {
         }
 
       } else {
+        // update "time"
         found_page->updateTime(this->_counter);
       }
 
     }
   }
 
+  ptrace_file.close();
+
+  // swaps 
   cout << this->_page_fault << " swaps" << endl;
 
 }
@@ -615,8 +639,10 @@ int main(int argc, char** argv) {
   }
 
   try {
+    // create instance of our class and run
     VMSimulator(argc, argv);
   } catch(MyException& err) {
+    // catches any custom errors we threw
     err.PrinterMsg();
   }
 
