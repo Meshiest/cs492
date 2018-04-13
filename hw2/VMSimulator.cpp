@@ -355,7 +355,7 @@ void VMSimulator::FIFO(Process* proc, int page_loc) {
       proc->setPagesRemaining(1);
     }
 
-    for(cur = 0; cur < (unsigned int) proc->getSize(); cur++) {
+    for(cur = 0; cur < (unsigned int) proc->getSize()-1; cur++) {
       if(proc->getPage(cur)->getPageNum() > page_loc && !proc->getPage(cur)->getValid()) break;
     }
 
@@ -548,8 +548,11 @@ void VMSimulator::LoadPTrace(string ptrace_path) {
   // the found page
   Page* found_page;
   while(ptrace_file >> first >> second) { // while reading
-    page = (int) floor(second / this->_page_size); // store page we num we want
+    page = this->_page_size == 1 ? (int) floor(second / this->_page_size) - 1: (int) floor(second / this->_page_size); // calc page we want
+    //cout << "f: " << first << " s: " << second << endl;
+    //cout << "page size " << this->_page_size << " page " << page << endl;
     found_page = this->_processes.at(first)->getPage(page);
+    //cout << "made it" << endl;
     //cout << page << " " << foundPage << endl; for testing
 
     // perform page replacment algorithm

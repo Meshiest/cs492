@@ -1,6 +1,6 @@
 algo, page size, prepage, swaps
-clock, 1, +,
-clock, 1, -,
+clock, 1, +, 100184
+clock, 1, -, 185074
 clock, 2, +, 94663
 clock, 2, -, 138153
 clock, 4, +, 92810
@@ -9,8 +9,8 @@ clock, 8, +, 90755
 clock, 8, -, 101206
 clock, 16, +, 94722
 clock, 16, -, 93343
-fifo, 1, +,
-fifo, 1, -,
+fifo, 1, +, 101057
+fifo, 1, -, 186381
 fifo, 2, +, 99034
 fifo, 2, -, 146302
 fifo, 4, +, 105326
@@ -19,8 +19,8 @@ fifo, 8, +, 117617
 fifo, 8, -, 116630
 fifo, 16, +, 127357
 fifo, 16, -, 117161
-lru, 1, +,
-lru, 1, -,
+lru, 1, +, 99943
+lru, 1, -, 185071
 lru, 2, +, 94008
 lru, 2, -, 138176
 lru, 4, +, 92304
