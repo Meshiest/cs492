@@ -49,7 +49,8 @@ private:
   int _page_num;
   // whether page is valid or not
   bool _valid;
-  // last accessed time
+  // last accessed "time"
+  // we just need to show that we understand the algo...
   unsigned long _access_time;
 
 };
@@ -340,6 +341,7 @@ void VMSimulator::FIFO(Process* proc, int page_loc) {
   this->_main_memory.push_back(page_loc);
   proc->getPage(page_loc - min_id)->setValid(true);
 
+  // prepaging
   if(this->_prepaging) {
 
     if(!proc->getPagesRemaining()) {
@@ -359,8 +361,9 @@ void VMSimulator::FIFO(Process* proc, int page_loc) {
       if(proc->getPage(cur)->getPageNum() > page_loc && !proc->getPage(cur)->getValid()) break;
     }
 
+    // invalid page found push to memory
     this->_main_memory.push_back(proc->getPage(cur)->getPageNum());
-    proc->getPage(cur)->setValid(1);
+    proc->getPage(cur)->setValid(true);
     proc->setPagesRemaining(proc->getPagesRemaining() - 1);
   }
 }
@@ -371,6 +374,7 @@ void VMSimulator::LRU(Process* proc, Page* page) {
   int min_up_pid;
   Page* temp;
 
+  // find page with smallest "timestamp"
   for(int cur = 0; cur < proc->getSize(); cur++) {
 
     temp = proc->getPage(cur);
@@ -381,11 +385,12 @@ void VMSimulator::LRU(Process* proc, Page* page) {
     }
   }
 
+  // unload found page load new page
   proc->getPage(min_up_pid)->setValid(0);
   this->_main_memory.erase(this->_main_memory.begin() + getIndex(proc->getPage(min_up_pid)->getPageNum()));
 
   this->_main_memory.push_back(page->getPageNum());
-  page->setValid(1);
+  page->setValid(true);
   page->updateTime(this->_counter);
 
   if(this->_prepaging) {
@@ -403,7 +408,7 @@ void VMSimulator::LRU(Process* proc, Page* page) {
 
       }
 
-      proc->getPage(min_up_pid)->setValid(0);
+      proc->getPage(min_up_pid)->setValid(false);
       proc->getPage(min_up_pid)->updateTime(this->_counter);
       this->_main_memory.erase(this->_main_memory.begin() + getIndex(proc->getPage(min_up_pid)->getPageNum()));
       proc->setPagesRemaining(1);
@@ -411,9 +416,10 @@ void VMSimulator::LRU(Process* proc, Page* page) {
 
     for(int cur = 0; cur < proc->getSize(); cur++) {
 
+      // next found invalid page push it to memory
       if(proc->getPage(cur)->getPageNum() > page->getPageNum() && !proc->getPage(cur)->getValid()) {
         this->_main_memory.push_back(proc->getPage(cur)->getPageNum());
-        proc->getPage(cur)->setValid(1);
+        proc->getPage(cur)->setValid(true);
         proc->getPage(cur)->updateTime(this->_counter);
         proc->setPagesRemaining(proc->getPagesRemaining() - 1);
         break;
@@ -430,6 +436,7 @@ void VMSimulator::Clock(Process* proc, int page_loc) {
   Page* new_page;
   int next_page_num;
 
+  // find first invalid page
   for(;;proc->incrementIterator()) {
 
     if(proc->getIterator() == proc->getEndIterator()) proc->resetIterator();
@@ -437,15 +444,17 @@ void VMSimulator::Clock(Process* proc, int page_loc) {
     tmp = *(proc->getIterator());
 
     if(!tmp->getValid()) {
+      // replace invalid page, with wanted page
       proc->replacePage(tmp->getPageNum(), page_loc);
       break;
     }
-    else tmp->setValid(0);
+    else tmp->setValid(false);
 
   }
 
   if(this->_prepaging) {
 
+    // sno pages remaining we need to insert
     if(!proc->getPagesRemaining()) {
 
       for(int cur = 0; cur < proc->getSize(); cur++) {
@@ -468,7 +477,7 @@ void VMSimulator::Clock(Process* proc, int page_loc) {
 
       tmp = *(proc->getIterator());
 
-      if(tmp->getValid() == 0) {
+      if(!tmp->getValid()) {
 
         if(!proc->getPagesRemaining()) {
           proc->replacePage(tmp->getPageNum(), next_page_num);
@@ -481,7 +490,7 @@ void VMSimulator::Clock(Process* proc, int page_loc) {
       }
 
       else {
-        tmp->setValid(0);
+        tmp->setValid(false);
       }
 
     }
@@ -589,7 +598,7 @@ void VMSimulator::LoadPTrace(string ptrace_path) {
 
   ptrace_file.close();
 
-  // swaps 
+  // swaps
   cout << this->_page_fault << " swaps" << endl;
 
 }
@@ -600,6 +609,7 @@ VMSimulator::VMSimulator(int argc, char** argv) {
   istringstream iss;
   iss.str(((string) argv[3]));
 
+  // validate page size
   if(!(iss >> this->_page_size)) {
     throw MyException("Error: Page size was not a valid integer.");
   }
@@ -608,6 +618,8 @@ VMSimulator::VMSimulator(int argc, char** argv) {
     throw MyException("Error: Page size cannot be less than or equal to 0.");
   }
 
+
+  // validate algo type
   string algo = (string) argv[4];
   if(!algo.compare("fifo") || !algo.compare("FIFO")) {
     this->_algo = 0;
@@ -619,6 +631,7 @@ VMSimulator::VMSimulator(int argc, char** argv) {
     throw MyException("Error: Invalid algorithim type.");
   }
 
+  // validate prepage op
   if(argv[5][0] == '+') {
     this->_prepaging = true;
   } else if(argv[5][0] == '-') {
@@ -627,10 +640,13 @@ VMSimulator::VMSimulator(int argc, char** argv) {
     throw MyException("Error: Invalid prepaging operator.");
   }
 
+  // validate and perform according actions for plist and ptrace
   this->LoadPList((string) argv[1]);
 
   this->LoadPTrace((string) argv[2]);
 
+
+  // good practice even though we sometimes got lazy with that
   this->_main_memory.clear();
 }
 

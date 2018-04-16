@@ -1,0 +1,6 @@
+Analysis:
+
+  After compiling the program and running multiple page replacement algorithms spanning from FIFO, CLOCK, and LRU the number of swaps varied
+between the different methodologies and prepaging vs, on demand paging. When constructing the actual program, building the different types of algorithms wasn’t too hard but implementing it into a singular program gave us a few problems. We expected that pre-paging would be a lower number of swaps than not for each algo. We also expected the LRU algo(at least for the given trace) to be the most efficient algo with the number of swaps, as this is what we learned would fit best for this situation.
+  Implementing each algo while in theory fifo was seemingly the easiest to implement it was also the one we messed up the most. It was nothing
+major, just some minor errors of looping through more pages than we had and trying to acces them. Asides from that implementing clock was the most diffcult just due to the complexity of the way the algo itself worked and how many more helper functions were required to actually implement those. Depending on the order of the trace the data of which algo is the best for this situation could have changed a lot depending on the data provided. Making the numbers closer, father apart, or some other changes.
