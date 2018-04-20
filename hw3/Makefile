@@ -1,9 +1,9 @@
 .PHONY: all debug clean fclean re
 # Name of your program:
-NAME=VMSimulator
+NAME=fs
 
 # List of all .cpp source code files included in your program (separated by spaces):
-SRC=VMSimulator.cpp
+SRC=fs.cc
 
 
 
@@ -12,7 +12,7 @@ OBJ=$(addprefix $(SRCPATH), $(SRC:.cpp=.o))
 
 RM=rm -f
 INCPATH=includes
-CPPFLAGS+= -std=c++17 -Wall -Werror -pedantic -I $(INCPATH)
+CPPFLAGS+= -std=c++14 -Wall -Werror -pedantic -I $(INCPATH)
 
 
 all: $(OBJ)
