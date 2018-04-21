@@ -1,50 +1,159 @@
+#include <cstring>
+#include <ctime>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <sstream>
+#include <string>
+#include <type_traits>
 #include <unistd.h>
 #include <vector>
 
+
 using namespace std;
 
+// disk struct to use with linked list
 typedef struct disk {
   unsigned long id;
   unsigned long num_blocks;
   bool used;
 } disk;
 
+// file struct to use with linked list
 typedef struct file {
   unsigned long addr;
   int bytes_used;
 } file;
 
-typedef enum {
-  DIR_NODE,
-  FILE_NODE
-} NodeType;
+// enums for diff node types
+typedef enum { DIRN } DIR_NODE;
+typedef enum { FILEN } FILE_NODE;
 
-template <class Type>
+// to get current local time
+struct tm now() {
+  time_t x = time(NULL);
+  struct tm *t = localtime(&x);
+  return *t;
+}
+
+// node that takes a typename so we can use with our enums
+template <typename Type>
 class Node {
 
 public:
   Node(string name);
   Node(string name, Node<Type>* parent);
+  // honestly would be better to make two more constructors
+  // but eh
+  void SetTime(struct tm made);
 
-private:
   string name;
+  // below is for differnet types of nodes
+  // this is gross but linux lab sucks
+  // so I don't really hava
+  vector<Node<Type>* > children;
+  unsigned long size;
+  list<file*> blocks;
+private:
   Node<Type>* parent;
-  vector<Node<Type> > children;
+  struct tm time;
 };
 
-template <class Type>
+// if no parent
+template <typename Type>
 Node<Type>::Node(string name) {
   this->name = name;
+  this->time = now();
   this->parent = NULL;
 }
 
-template <class Type>
+// if parent
+template <typename Type>
 Node<Type>::Node(string name, Node<Type>* parent) {
   this->name = name;
+  this->time = now();
   this->parent = parent;
+}
+
+template <typename Type>
+void Node<Type>::SetTime(struct tm made) {
+  this->time = made;
+}
+
+void mkdir(string path, Node<DIR_NODE>* root) {
+  int split = path.find('/');
+
+  if(split != string::npos) {
+    int plen = split - path.length();
+    string sub = path.substr(0, split);
+
+    if(sub.compare(".") == 0) {
+      mkdir(sub.substr(1), root);
+      return;
+    }
+
+    // if directory exists put new director in
+    for(int i = 0; i < root->children.size(); i++) {
+      Node<DIR_NODE>* child = root->children[i];
+      if(child->name.compare(sub) == 0) {
+        mkdir(sub.substr(1), child);
+        return;
+      }
+    }
+
+    // doesn't exist make it
+    Node<DIR_NODE>* create = new Node<DIR_NODE>(sub, root);
+    root->children.push_back(create);
+    mkdir(sub.substr(1), create);
+
+  } else if(split == string::npos) {
+    Node<DIR_NODE>* create = new Node<DIR_NODE>(path, root);
+    root->children.push_back(create);
+  }
+}
+
+// parse dir file
+Node<DIR_NODE>* parse_dirs(ifstream& dir_list) {
+  // create linked list
+  Node<DIR_NODE>* root = new Node<DIR_NODE>("/");
+
+  // read line by line making directories
+  string line;
+  while(dir_list >> line) {
+    //cout << line << endl;
+    mkdir(line, root);
+  }
+
+  return root;
+}
+
+void parse_file_list(ifstream& file_list, Node<DIR_NODE>* root, disk* dsk, int block_size) {
+  unsigned long size;
+  string dump, day, month, timestamp, datetime, file_path;
+
+  // read the things we need
+  // c++ doesn't do this well
+  while(file_list >>
+      dump >> dump >> dump >> dump >> dump >> dump >>
+      size >> month >> day >> timestamp >> file_path) {
+    datetime = month + " " +  day + " " + timestamp;
+    struct tm date = {0};
+    int timeoryear = timestamp.find(":");
+    if(timeoryear != string::npos) {
+      strptime(datetime.c_str(), "%b %d %H:%M", &date);
+    } else {
+      strptime(datetime.c_str(), "%b %d %Y", &date);
+    }
+
+    if(date.tm_year == 0) {
+      date.tm_year = now().tm_year;
+    }
+
+    int last_slash = file_path.find_last_of("/");
+    Node<FILE_NODE>* file = new Node<FILE_NODE>(file_path.substr(last_slash));
+    file->SetTime(date);
+
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -103,6 +212,10 @@ int main(int argc, char* argv[]) {
   }
 
   disk idisk = {.id = 0, .num_blocks = disk_size/block_size, .used = false};
+
+  Node<DIR_NODE>* root = parse_dirs(dir_list);
+
+  parse_file_list(file_list, root, &idisk, block_size);
 
   return 0;
 }
