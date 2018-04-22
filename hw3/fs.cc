@@ -14,6 +14,7 @@ using namespace std;
 
 // disk struct to use with linked list
 typedef struct disk {
+  struct disk* next;
   unsigned long id;
   unsigned long num_blocks;
   bool used;
@@ -112,6 +113,21 @@ void mkdir(string path, Node<DIR_NODE>* root) {
   }
 }
 
+void ldisk_merge(disk* d) {
+  disk* next;
+
+  while (next = ldisk->next) {
+    if (d->used == next->used) {
+      d->num_blocks += next->num_blocks;
+      d->next = next->next;
+
+      free(next);
+    } else {
+      d = next;
+    }
+  }
+}
+ 
 // parse dir file
 Node<DIR_NODE>* parse_dirs(ifstream& dir_list) {
   // create linked list
@@ -139,11 +155,7 @@ void parse_file_list(ifstream& file_list, Node<DIR_NODE>* root, disk* dsk, int b
     datetime = month + " " +  day + " " + timestamp;
     struct tm date = {0};
     int timeoryear = timestamp.find(":");
-    if(timeoryear != string::npos) {
-      strptime(datetime.c_str(), "%b %d %H:%M", &date);
-    } else {
-      strptime(datetime.c_str(), "%b %d %Y", &date);
-    }
+    strptime(datetime.c_str(), timeoryear != string::npos ? "%b %d %H:%M" : "%b %d %Y", &date);
 
     if(date.tm_year == 0) {
       date.tm_year = now().tm_year;
