@@ -47,6 +47,7 @@ public:
   // honestly would be better to make two more constructors
   // but eh
   void SetTime(struct tm made);
+  Node<Type>* find_child(string path);
 
   string name;
   // below is for differnet types of nodes
@@ -55,8 +56,8 @@ public:
   vector<Node<Type>* > children;
   unsigned long size;
   list<file*> blocks;
-private:
   Node<Type>* parent;
+private:
   struct tm time;
 };
 
@@ -79,6 +80,13 @@ Node<Type>::Node(string name, Node<Type>* parent) {
 template <typename Type>
 void Node<Type>::SetTime(struct tm made) {
   this->time = made;
+}
+
+template <typename Type>
+Node<Type>* Node<Type>::find_child(string path) {
+  for(auto it = begin(this->children); it != end(this->children); ++it) {
+    // not sure how to check the type of a generic in c++
+  }
 }
 
 void mkdir(string path, Node<DIR_NODE>* root) {
@@ -116,7 +124,7 @@ void mkdir(string path, Node<DIR_NODE>* root) {
 void ldisk_merge(disk* d) {
   disk* next;
 
-  while (next = ldisk->next) {
+  while (next = d->next) {
     if (d->used == next->used) {
       d->num_blocks += next->num_blocks;
       d->next = next->next;
@@ -127,7 +135,30 @@ void ldisk_merge(disk* d) {
     }
   }
 }
- 
+
+template <typename Type>
+void insert_file_node(Node<DIR_NODE>* root, string path, Node<Type>* file) {
+  auto index = path.find('/');
+  if(index != string::npos) {
+    auto dir = path.substr(0, index);
+
+    if(dir.compare(".") == 0) {
+      insert_file_node(root, path.substr(index+1, string::npos), file);
+      return;
+    }
+
+   // todo: loop through `root->children` to find a
+   // directory that matches `dir`
+   // Then insert_file_node on that directory
+   // I started this with Node::find_child
+
+
+  } else {
+    file->parent = root;
+    root->children.push_back(file);
+  }
+}
+
 // parse dir file
 Node<DIR_NODE>* parse_dirs(ifstream& dir_list) {
   // create linked list
