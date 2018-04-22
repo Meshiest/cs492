@@ -153,6 +153,12 @@ void parse_file_list(ifstream& file_list, Node<DIR_NODE>* root, disk* dsk, int b
     Node<FILE_NODE>* file = new Node<FILE_NODE>(file_path.substr(last_slash));
     file->SetTime(date);
 
+    // todo: re-implement alloc blocks here
+    // don't actually need to allocate but need to mark
+    // blocks with proper data and used or not
+
+    // todo: implement ldisk merge
+    // todo: implement insert file node
   }
 }
 
