@@ -246,6 +246,24 @@ Disk* free_block(Disk* dsk, unsigned block) {
   before->num_blocks = block - dsk->id;
   free_node->num_blocks = 1;
   after->num_blocks = oldnblocks - before->num_blocks - free_node->num_blocks;
+
+  if(before->num_blocks == 0) {
+    *before = *free_node;
+    delete(free_node);
+    free_node = NULL;
+  }
+
+  if(after->num_blocks == 0) {
+    assert(!after->next || after->id == after->next->kid);
+    if(free_node) {
+      free_node->next = after->next;
+    } else {
+      before->next = after->next;
+    }
+    delete(after);
+  }
+
+  return before;
 }
 
 File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
@@ -278,7 +296,7 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
     if (last->next->alloc == true) {
       for (int i = dsk->num_blocks - 1; i >= 0; --i) {
-        //freeBlock(disk, disk->blockid + i);
+        free_block(dsk, dsk->id + i);
       }
       File* freeme = list;
       while (freeme->next->alloc != true) { // go through list freeing blocks
