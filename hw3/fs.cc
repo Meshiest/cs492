@@ -4,7 +4,6 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
-#include <list>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -160,6 +159,9 @@ void disk_merge(Disk* d) {
 }
 
 void insert_file_node(Node* root, string path, Node* file) {
+  assert(root->type == DIR_NODE);
+  assert(file->type == FILE_NODE);
+
   auto index = path.find('/');
   if(index != string::npos) {
     auto dir = path.substr(0, index);
@@ -173,8 +175,15 @@ void insert_file_node(Node* root, string path, Node* file) {
    // directory that matches `dir`
    // Then insert_file_node on that directory
    // I started this with Node::find_child
+    for(auto item : root->children) {
+      Node* child = item;
+      if(child->type == DIR_NODE && (child->name.compare(dir) == 0)) {
+        insert_file_node(child, path.substr(index+1), file);
+        return;
+      }
+    }
 
-
+    assert(false && "Couldn't find directory for file. Were your file_list.txt and dir_list.txt generated together?");
   } else {
     file->parent = root;
     root->children.push_back(file);
@@ -226,7 +235,7 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
   }
 
   if(!dsk) {
-    cout << "Out of spave" << endl;
+    cout << "Out of space" << endl;
     return NULL;
   }
 
@@ -243,6 +252,34 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
 
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
 
+    return list;
+  } else {
+    int used_node_size = blocks_needed;
+    int free_node_size = dsk->num_blocks - blocks_needed;
+
+    assert(used_node_size != 0);
+    assert(free_node_size != 0);
+
+    Disk* next = dsk->next;
+    Disk* free_blocks = new Disk(next, dsk->id + used_node_size, free_node_size, false);
+    dsk->next = free_blocks;
+    free_blocks->next = next;
+
+    dsk->used = true;
+
+    if(size % block_size != 0) {
+      File* last = NULL;
+      File* list = make_files(dsk->id, used_node_size-1, block_size, &last);
+      File* partial = new File(NULL, (dsk->id + dsk->num_blocks -1) * block_size, size % block_size);
+
+      if(last) {
+        last->next = partial;
+      }
+      return list? list : partial;
+    } else {
+      File* list = make_files(dsk->id, used_node_size, block_size, NULL);
+      return list;
+    }
   }
 }
 
@@ -268,16 +305,20 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
     }
 
     int last_slash = file_path.find_last_of("/");
-    Node* file = new Node(file_path.substr(last_slash), FILE_NODE);
+    cout << last_slash << endl;
+    cout << file_path << " " << file_path.substr(last_slash) << endl;
+    Node* file = new Node(file_path.substr(last_slash+1), FILE_NODE);
     file->SetTime(date);
+    cout << file->name << endl;
     // todo: re-implement alloc blocks here
     //file->blocks = alloc_blocks(dsk, size, block_size);
+    // this seg faults
 
     // todo: implement ldisk merge
-    disk_merge(dsk);
+    //disk_merge(dsk);
 
     // todo: implement insert file node
-    //insert_file_node(root, file_path, file);
+    insert_file_node(root, file_path, file);
   }
 }
 
