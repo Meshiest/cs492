@@ -294,12 +294,12 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     File* list = make_files(dsk->id, dsk->num_blocks, block_size, &last);
 
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
-    if (last->next->alloc == true) {
-      for (int i = dsk->num_blocks - 1; i >= 0; --i) {
+    if(last->next->alloc) {
+      for(int i = dsk->num_blocks - 1; i >= 0; --i) {
         free_block(dsk, dsk->id + i);
       }
       File* freeme = list;
-      while (freeme->next->alloc != true) { // go through list freeing blocks
+      while(!freeme->next->alloc) { // go through list freeing blocks
         File* next = freeme->next;
         delete(freeme);
         freeme = next;
