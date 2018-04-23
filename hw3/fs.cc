@@ -117,15 +117,16 @@ void mkdir(string path, Node* root) {
   if(split != string::npos) {
     int plen = split - path.length();
     string sub = path.substr(0, split);
+    //cout << sub << endl;
 
-    if(sub.compare(".") == 0) {
+  /*  if(sub.compare(".") == 0) {
       mkdir(sub.substr(1), root);
       return;
-    }
+    }*/
 
     // if directory exists put new director in
-    for(int i = 0; i < root->children.size(); i++) {
-      Node* child = root->children[i];
+    for(auto child : root->children) {
+      cout << child->name << endl;
       if(child->name.compare(sub) == 0) {
         mkdir(sub.substr(1), child);
         return;
@@ -135,6 +136,7 @@ void mkdir(string path, Node* root) {
     // doesn't exist make it
     Node* create = new Node(sub, DIR_NODE, root);
     root->children.push_back(create);
+    cout << sub.substr(1) << endl;
     mkdir(sub.substr(1), create);
 
   } else if(split == string::npos) {
@@ -146,7 +148,7 @@ void mkdir(string path, Node* root) {
 void disk_merge(Disk* d) {
   Disk* next;
 
-  while (next = d->next) {
+  while ((next = d->next)) {
     if (d->used == next->used) {
       d->num_blocks += next->num_blocks;
       d->next = next->next;
@@ -295,9 +297,11 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
   while(file_list >>
       dump >> dump >> dump >> dump >> dump >> dump >>
       size >> month >> day >> timestamp >> file_path) {
+
     datetime = month + " " +  day + " " + timestamp;
     struct tm date = {0};
     int timeoryear = timestamp.find(":");
+    //cout << datetime << endl;
     strptime(datetime.c_str(), timeoryear != string::npos ? "%b %d %H:%M" : "%b %d %Y", &date);
 
     if(date.tm_year == 0) {
@@ -305,11 +309,10 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
     }
 
     int last_slash = file_path.find_last_of("/");
-    cout << last_slash << endl;
-    cout << file_path << " " << file_path.substr(last_slash) << endl;
-    Node* file = new Node(file_path.substr(last_slash+1), FILE_NODE);
-    file->SetTime(date);
-    cout << file->name << endl;
+    // cout << file_path.substr(last_slash+1) << endl;
+    //Node* file = new Node(file_path.substr(last_slash+1), FILE_NODE); // this is seg faulting?
+    //file->SetTime(date);
+    //cout << file->name << endl;
     // todo: re-implement alloc blocks here
     //file->blocks = alloc_blocks(dsk, size, block_size);
     // this seg faults
@@ -318,7 +321,7 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
     //disk_merge(dsk);
 
     // todo: implement insert file node
-    insert_file_node(root, file_path, file);
+    //insert_file_node(root, file_path, file);
   }
 }
 

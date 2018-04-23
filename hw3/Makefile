@@ -12,7 +12,7 @@ OBJ=$(addprefix $(SRCPATH), $(SRC:.cpp=.o))
 
 RM=rm -f
 INCPATH=includes
-CPPFLAGS+= -std=c++14 -Wall -Werror -pedantic -I $(INCPATH)
+CPPFLAGS+= -std=c++11 -Wall -Werror -pedantic -I $(INCPATH)
 
 
 all: $(OBJ)
