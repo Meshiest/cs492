@@ -34,12 +34,14 @@ Disk::Disk(Disk* next, unsigned long id, unsigned long num_blocks, bool used) {
 // file struct to use with linked list
 class File {
 public:
-  File(unsigned long addr, int bytes_used);
+  File(File* next, unsigned long addr, int bytes_used);
+  File* next;
   unsigned long addr;
   int bytes_used;
 };
 
-File::File(unsigned long addr, int bytes_used) {
+File::File(File* next, unsigned long addr, int bytes_used) {
+  this->next = next;
   this->addr = addr;
   this->bytes_used = bytes_used;
 }
@@ -194,7 +196,60 @@ Node* parse_dirs(ifstream& dir_list) {
   return root;
 }
 
+File* make_files(int from, int num, int block_size, File** last) {
+  if(num == 0) {
+    return NULL;
+  }
+
+  File* first = new File(NULL, from * block_size, block_size);
+  File* prev = first;
+  for(int i = 1; i < num; ++i) {
+    File* block = new File(NULL, (from + i) * block_size, block_size);
+    prev->next = block;
+    prev = block;
+  }
+
+  if(last) {
+    *last = prev;
+  }
+
+  return first;
+}
+
+File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
+  if(size == 0) {
+    return NULL;
+  }
+
+  while(dsk && dsk->used) {
+    dsk = dsk->next;
+  }
+
+  if(!dsk) {
+    cout << "Out of spave" << endl;
+    return NULL;
+  }
+
+  unsigned long blocks_needed = size/block_size;
+  if(size % block_size) {
+    blocks_needed++;
+  }
+
+  if(blocks_needed >= dsk->num_blocks) {
+    dsk->used = true;
+
+    File* last;
+    File* list = make_files(dsk->id, dsk->num_blocks, block_size, &last);
+
+    last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
+
+  }
+}
+
 void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size) {
+  assert(root->type == DIR_NODE);
+  assert(root->parent == NULL);
+
   unsigned long size;
   string dump, day, month, timestamp, datetime, file_path;
 
@@ -241,15 +296,14 @@ vector<Node*> dir_node_path(Node* dir) {
 }
 
 void print_dir_path(Node* cur) {
+  cout << "/";
 
   vector<Node*> path = dir_node_path(cur);
   path.erase(path.begin());
 
   for(auto p : path) {
-    cout << p->name;
+    cout << p->name << "/";
   }
-
-  cout << "/";
 }
 
 void ls(Node* dir) {
@@ -356,7 +410,7 @@ int main(int argc, char* argv[]) {
 
   Node* root = parse_dirs(dir_list);
 
-  //parse_file_list(file_list, root, idisk, block_size);
+  parse_file_list(file_list, root, idisk, block_size);
 
   // input loop
   Node* curr_dir = root;
@@ -376,8 +430,9 @@ int main(int argc, char* argv[]) {
       cout << "dir" << endl;
     } else if(command.compare("ls") == 0) {
       ls(curr_dir);
+    } else if(command.compare("cd..") == 0) {
+      curr_dir = cd("..", curr_dir);
     } else if(command.compare(0, 2, "cd") == 0) {
-      cout << command.substr(3) << endl;
       curr_dir = cd(command.substr(3), curr_dir);
     } else if(command.compare(0, 5, "mkdir") == 0) {
       mkdir(command.substr(6), curr_dir);
