@@ -278,6 +278,16 @@ Node* find_node_from_path(string path, Node* root, Node* org) {
 }
 
 Node* cd(string path, Node* cur) {
+  if(path.compare("..") == 0) {
+    int split = path.find('/');
+
+    if(split == string::npos && (cur->name.compare("/") != 0)) {
+      return cur->parent;
+    } else {
+      cout << "You are in root and cannot cd back a directory." << endl;
+      return cur;
+    }
+  }
   Node* found = find_node_from_path(path, cur, cur);
 
   if(found->type == FILE_NODE) {
@@ -362,6 +372,8 @@ int main(int argc, char* argv[]) {
     if(command.compare("exit") == 0) {
       cout << "goodbye" << endl;
       break;
+    } else if(command.compare("dir") == 0) {
+      cout << "dir" << endl;
     } else if(command.compare("ls") == 0) {
       ls(curr_dir);
     } else if(command.compare(0, 2, "cd") == 0) {
