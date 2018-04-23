@@ -21,7 +21,6 @@ public:
   unsigned long id;
   unsigned long num_blocks;
   bool used;
-  bool err;
 };
 
 Disk::Disk(Disk* next, unsigned long id, unsigned long num_blocks, bool used) {
@@ -29,7 +28,6 @@ Disk::Disk(Disk* next, unsigned long id, unsigned long num_blocks, bool used) {
   this->id = id;
   this->num_blocks = num_blocks;
   this->used = used;
-  this->err = false;
 }
 
 // file struct to use with linked list
@@ -39,12 +37,14 @@ public:
   File* next;
   unsigned long addr;
   int bytes_used;
+  bool alloc;
 };
 
 File::File(File* next, unsigned long addr, int bytes_used) {
   this->next = next;
   this->addr = addr;
   this->bytes_used = bytes_used;
+  this->alloc = false;
 }
 
 // enums for diff node types
@@ -222,6 +222,30 @@ File* make_files(int from, int num, int block_size, File** last) {
   return first;
 }
 
+Disk* free_block(Disk* dsk, unsigned block) {
+  while(!(dsk->id <= block && block < dsk->id + dsk->num_blocks)) {
+    dsk = dsk->next;
+    assert(dsk);
+  }
+
+  assert(dsk->used);
+  Disk *oldnext = disk->next;
+  unsigned long oldnblocks = disk->num_blocks;
+
+  Disk* before = dsk;
+  Disk* free_node = new Disk(NULL, 0, 0 false);
+  Disk* after = new Disk(NULL, 0, 0 false);
+
+  before->next = free_node;
+  free_node->next = after;
+  after->next = oldnext;
+
+  free_node->id = block;
+  after->id = block+1;
+
+  before->num_blocks = block;
+}
+
 File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
   if(size == 0) {
     return NULL;
@@ -233,8 +257,9 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
 
   if(!dsk) {
     cout << "Out of space" << endl;
-    dsk->err = true;
-    return NULL;
+    File* alloc_err = new File(NULL, 0, 0);
+    alloc_err->alloc = true;
+    return alloc_err;
   }
 
   unsigned long blocks_needed = size/block_size;
@@ -249,6 +274,20 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     File* list = make_files(dsk->id, dsk->num_blocks, block_size, &last);
 
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
+    if (last->next->alloc == true) {
+      for (int i = dsk->num_blocks - 1; i >= 0; --i) {
+        //freeBlock(disk, disk->blockid + i);
+      }
+      File* freeme = list;
+      while (freeme->next->alloc != true) { // go through list freeing blocks
+        File* next = freeme->next;
+        delete(freeme);
+        freeme = next;
+      }
+      File* alloc_err = new File(NULL, 0, 0);
+      alloc_err->alloc = true;
+      return alloc_err;
+    }
 
     return list;
   } else {
@@ -311,12 +350,9 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
     file->SetTime(date);
     // todo: re-implement alloc blocks here
     file->blocks = alloc_blocks(dsk, size, block_size);
-    // this seg faults
 
-    // todo: implement ldisk merge
     disk_merge(dsk);
 
-    // todo: implement insert file node
     insert_file_node(root, file_path, file);
   }
 }
