@@ -229,12 +229,12 @@ Disk* free_block(Disk* dsk, unsigned block) {
   }
 
   assert(dsk->used);
-  Disk *oldnext = disk->next;
-  unsigned long oldnblocks = disk->num_blocks;
+  Disk *oldnext = dsk->next;
+  unsigned long oldnblocks = dsk->num_blocks;
 
   Disk* before = dsk;
-  Disk* free_node = new Disk(NULL, 0, 0 false);
-  Disk* after = new Disk(NULL, 0, 0 false);
+  Disk* free_node = new Disk(NULL, 0, 0, false);
+  Disk* after = new Disk(NULL, 0, 0, false);
 
   before->next = free_node;
   free_node->next = after;
@@ -243,7 +243,9 @@ Disk* free_block(Disk* dsk, unsigned block) {
   free_node->id = block;
   after->id = block+1;
 
-  before->num_blocks = block;
+  before->num_blocks = block - dsk->id;
+  free_node->num_blocks = 1;
+  after->num_blocks = oldnblocks - before->num_blocks - free_node->num_blocks;
 }
 
 File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
