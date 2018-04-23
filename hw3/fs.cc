@@ -447,6 +447,35 @@ Node* cd(string path, Node* cur) {
   return found;
 }
 
+void append(Node* dir, string filename, int size, Disk* d, unsigned long block_size) {
+  Node* f = find_node_from_path(filename, dir, NULL);
+  if(!f || f->type == DIR_NODE) {
+    cout << filename << ": no such file" << endl;
+    return;
+  }
+
+  File* last = f->blocks;
+  if(!last) {
+    f->blocks = alloc_blocks(d, size, block_size);
+    disk_merge(d);
+    if(!f->blocks->alloc) {
+      f->blocks = NULL;
+      return;
+    }
+  } else {
+    while(last->next) last = last->next;
+    int free_space = block_size - last->bytes_used;
+    int fill_space = free_space > size ? size : free_space;
+    last->next = alloc_blocks(d, size - fill_space, block_size);
+    if(last->next->alloc) {
+      last->next = NULL;
+      return;
+    }
+
+    last->bytes_used += fill_space;
+  }
+}
+
 int main(int argc, char* argv[]) {
   // create files to open
   ifstream file_list, dir_list;
@@ -544,6 +573,7 @@ int main(int argc, char* argv[]) {
         string filename = command.substr(0, spacePos);
         int space = atoi(command.substr(spacePos + 1).c_str());
         cout << "append '" << filename << "' + " << space << endl;
+        append(curr_dir, filename, space, idisk, block_size);
       }
     } else if(command.compare("remove") == 0) {
       cout << "remove" << endl;
