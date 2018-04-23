@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -82,6 +83,7 @@ private:
 
 // if no parent
 Node::Node(string name, NodeType type) {
+  assert(parent == NULL || parent->type == type);
   this->name = name;
   this->type = type;
   this->time = now();
@@ -90,6 +92,7 @@ Node::Node(string name, NodeType type) {
 
 // if parent
 Node::Node(string name, NodeType type, Node* parent) {
+  assert(parent == NULL || parent->type == type);
   this->name = name;
   this->type = type;
   this->time = now();
@@ -107,6 +110,7 @@ void Node::SetTime(struct tm made) {
 }*/
 
 void mkdir(string path, Node* root) {
+  assert(root->type == DIR_NODE);
   int split = path.find('/');
 
   if(split != string::npos) {
@@ -318,7 +322,38 @@ int main(int argc, char* argv[]) {
   print_dir_path(curr_dir);
   cout << " > ";
 
-  
+  while(getline(cin, command)) {
+
+    if(command.compare("exit") == 0) {
+      cout << "goodbye" << endl;
+      break;
+    } else if(command.compare("ls") == 0) {
+      cout << "ls" << endl;
+    } else if(command.compare(0, 2, "cd") == 0) {
+      cout << "cd" << endl;
+    } else if(command.compare(0, 5, "mkdir") == 0) {
+      mkdir(command.substr(6), curr_dir);
+    } else if(command.compare(0, 6, "create") == 0) {
+      cout << "create" << endl;
+    } else if(command.compare(0, 6, "delete") == 0) {
+      cout << "delete" << endl;
+    } else if(command.compare("append") == 0) {
+      cout << "append" << endl;
+    } else if(command.compare("remove") == 0) {
+      cout << "remove" << endl;
+    } else if(command.compare("prdisk") == 0) {
+      cout << "prdisk" << endl;
+    } else if(command.compare("prfiles") == 0) {
+      cout << "prfiles" << endl;
+    } else {
+      cout << "Unknown command: " << command << endl;
+    }
+
+
+    assert(curr_dir->type == DIR_NODE);
+    print_dir_path(curr_dir);
+    cout << " > ";
+  }
 
   return 0;
 }
