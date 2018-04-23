@@ -516,8 +516,15 @@ int main(int argc, char* argv[]) {
       cout << "create" << endl;
     } else if(command.compare(0, 6, "delete") == 0) {
       cout << "delete" << endl;
-    } else if(command.compare("append") == 0) {
-      cout << "append" << endl;
+    } else if(command.compare(0, 6, "append") == 0) {
+      int spacePos = command.find(' ');
+      if(spacePos == string::npos) {
+        cout << "Usage: append <filename> <bytes>" << endl;
+      } else {
+        string filename = command.substr(0, spacePos);
+        int space = atoi(command.substr(spacePos + 1).c_str());
+        cout << "append '" << filename << "' + " << space << endl;
+      }
     } else if(command.compare("remove") == 0) {
       cout << "remove" << endl;
     } else if(command.compare("prdisk") == 0) {
