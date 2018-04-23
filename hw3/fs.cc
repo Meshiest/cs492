@@ -229,12 +229,12 @@ Disk* free_block(Disk* dsk, unsigned block) {
   }
 
   assert(dsk->used);
-  Disk *oldnext = disk->next;
-  unsigned long oldnblocks = disk->num_blocks;
+  Disk *oldnext = dsk->next;
+  unsigned long oldnblocks = dsk->num_blocks;
 
   Disk* before = dsk;
-  Disk* free_node = new Disk(NULL, 0, 0 false);
-  Disk* after = new Disk(NULL, 0, 0 false);
+  Disk* free_node = new Disk(NULL, 0, 0, false);
+  Disk* after = new Disk(NULL, 0, 0, false);
 
   before->next = free_node;
   free_node->next = after;
@@ -243,7 +243,27 @@ Disk* free_block(Disk* dsk, unsigned block) {
   free_node->id = block;
   after->id = block+1;
 
-  before->num_blocks = block;
+  before->num_blocks = block - dsk->id;
+  free_node->num_blocks = 1;
+  after->num_blocks = oldnblocks - before->num_blocks - free_node->num_blocks;
+
+  if(before->num_blocks == 0) {
+    *before = *free_node;
+    delete(free_node);
+    free_node = NULL;
+  }
+
+  if(after->num_blocks == 0) {
+    assert(!after->next || after->id == after->next->id);
+    if(free_node) {
+      free_node->next = after->next;
+    } else {
+      before->next = after->next;
+    }
+    delete(after);
+  }
+
+  return before;
 }
 
 File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
@@ -274,12 +294,12 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     File* list = make_files(dsk->id, dsk->num_blocks, block_size, &last);
 
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
-    if (last->next->alloc == true) {
-      for (int i = dsk->num_blocks - 1; i >= 0; --i) {
-        //freeBlock(disk, disk->blockid + i);
+    if(last->next->alloc) {
+      for(int i = dsk->num_blocks - 1; i >= 0; --i) {
+        free_block(dsk, dsk->id + i);
       }
       File* freeme = list;
-      while (freeme->next->alloc != true) { // go through list freeing blocks
+      while(!freeme->next->alloc) { // go through list freeing blocks
         File* next = freeme->next;
         delete(freeme);
         freeme = next;
@@ -456,32 +476,6 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
   }
 }
 
-void remove(Node* dir, string filename, int size, disk* d, unsigned long block_size) {
-  Node* f = find_node_from_path(filename, dir, NULL);
-  if(!f || f->type == DIR_NODE) {
-    cout << filename << ": no such file" << endl;
-    return;
-  }
-
-  File* blocks = f->blocks;
-  if(!blocks) {
-    cout << filename << " is empty" << endl;
-    return;
-  }
-
-  if(f->size < size) {
-    cout << filename << " is smaller than " << size;
-    return;
-  }
-
-  //TODO: implement shrink file
-  
-  f->size -= size;
-  if(!f->size) {
-    f->blocks = NULL;
-  }
-}
-
 int main(int argc, char* argv[]) {
   // create files to open
   ifstream file_list, dir_list;
@@ -578,17 +572,10 @@ int main(int argc, char* argv[]) {
       } else {
         string filename = command.substr(0, spacePos);
         int space = atoi(command.substr(spacePos + 1).c_str());
+        cout << "append '" << filename << "' + " << space << endl;
         append(curr_dir, filename, space, idisk, block_size);
       }
     } else if(command.compare("remove") == 0) {
-       int spacePos = command.find(' ');
-      if(spacePos == string::npos) {
-        cout << "Usage: remove <filename> <bytes>" << endl;
-      } else {
-        string filename = command.substr(0, spacePos);
-        int space = atoi(command.substr(spacePos + 1).c_str());
-        remove(curr_dir, filename, space, idisk, block_size);
-      }
       cout << "remove" << endl;
     } else if(command.compare("prdisk") == 0) {
       cout << "prdisk" << endl;
