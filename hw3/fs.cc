@@ -252,6 +252,41 @@ void print_dir_path(Node* cur) {
   cout << "/";
 }
 
+void ls(Node* dir) {
+  assert(dir->type == DIR_NODE);
+  for(auto item : dir->children) {
+    cout << item->name << endl;
+  }
+}
+
+Node* find_node_from_path(string path, Node* root, Node* org) {
+  int split = path.find('/');
+
+  if(split == string::npos) {
+
+    for(auto item : root->children) {
+      Node* child = item;
+      if(child->name.compare(path) == 0) {
+        return child;
+      }
+    }
+
+  }
+
+  cout << "No such file or directory " << path << endl;
+  return org;
+}
+
+Node* cd(string path, Node* cur) {
+  Node* found = find_node_from_path(path, cur, cur);
+
+  if(found->type == FILE_NODE) {
+    cout << found->name << " is a file, cannot cd into a file" << endl;
+  }
+
+  return found;
+}
+
 int main(int argc, char* argv[]) {
   // create files to open
   ifstream file_list, dir_list;
@@ -328,9 +363,10 @@ int main(int argc, char* argv[]) {
       cout << "goodbye" << endl;
       break;
     } else if(command.compare("ls") == 0) {
-      cout << "ls" << endl;
+      ls(curr_dir);
     } else if(command.compare(0, 2, "cd") == 0) {
-      cout << "cd" << endl;
+      cout << command.substr(3) << endl;
+      curr_dir = cd(command.substr(3), curr_dir);
     } else if(command.compare(0, 5, "mkdir") == 0) {
       mkdir(command.substr(6), curr_dir);
     } else if(command.compare(0, 6, "create") == 0) {
