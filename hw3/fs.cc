@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -221,6 +222,32 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
   }
 }
 
+vector<Node*> dir_node_path(Node* dir) {
+  vector<Node*> res;
+
+  Node* cur = dir;
+  while(cur) {
+    res.push_back(cur);
+    cur = cur->parent;
+  }
+
+  reverse(res.begin(), res.end());
+
+  return res;
+}
+
+void print_dir_path(Node* cur) {
+
+  vector<Node*> path = dir_node_path(cur);
+  path.erase(path.begin());
+
+  for(auto p : path) {
+    cout << p->name;
+  }
+
+  cout << "/";
+}
+
 int main(int argc, char* argv[]) {
   // create files to open
   ifstream file_list, dir_list;
@@ -280,7 +307,18 @@ int main(int argc, char* argv[]) {
 
   Node* root = parse_dirs(dir_list);
 
-  parse_file_list(file_list, root, idisk, block_size);
+  //parse_file_list(file_list, root, idisk, block_size);
+
+  // input loop
+  Node* curr_dir = root;
+  string command;
+  size_t len = 0;
+  ssize_t nread;
+
+  print_dir_path(curr_dir);
+  cout << " > ";
+
+  
 
   return 0;
 }
