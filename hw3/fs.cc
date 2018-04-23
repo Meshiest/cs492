@@ -21,6 +21,7 @@ public:
   unsigned long id;
   unsigned long num_blocks;
   bool used;
+  bool err;
 };
 
 Disk::Disk(Disk* next, unsigned long id, unsigned long num_blocks, bool used) {
@@ -28,6 +29,7 @@ Disk::Disk(Disk* next, unsigned long id, unsigned long num_blocks, bool used) {
   this->id = id;
   this->num_blocks = num_blocks;
   this->used = used;
+  this->err = false;
 }
 
 // file struct to use with linked list
@@ -84,7 +86,6 @@ private:
 
 // if no parent
 Node::Node(string name, NodeType type) {
-  assert(parent == NULL || parent->type == type);
   this->name = name;
   this->type = type;
   this->time = now();
@@ -93,7 +94,6 @@ Node::Node(string name, NodeType type) {
 
 // if parent
 Node::Node(string name, NodeType type, Node* parent) {
-  assert(parent == NULL || parent->type == type);
   this->name = name;
   this->type = type;
   this->time = now();
@@ -115,18 +115,15 @@ void mkdir(string path, Node* root) {
   int split = path.find('/');
 
   if(split != string::npos) {
-    int plen = split - path.length();
     string sub = path.substr(0, split);
-    //cout << sub << endl;
 
-  /*  if(sub.compare(".") == 0) {
-      mkdir(sub.substr(1), root);
-      return;
-    }*/
+  if(sub.compare(".") == 0) {
+    mkdir(sub.substr(1), root);
+    return;
+  }
 
     // if directory exists put new director in
     for(auto child : root->children) {
-      cout << child->name << endl;
       if(child->name.compare(sub) == 0) {
         mkdir(sub.substr(1), child);
         return;
@@ -136,8 +133,7 @@ void mkdir(string path, Node* root) {
     // doesn't exist make it
     Node* create = new Node(sub, DIR_NODE, root);
     root->children.push_back(create);
-    cout << sub.substr(1) << endl;
-    mkdir(sub.substr(1), create);
+    mkdir(path.substr(split+1), create);
 
   } else if(split == string::npos) {
     Node* create = new Node(path, DIR_NODE, root);
@@ -200,7 +196,6 @@ Node* parse_dirs(ifstream& dir_list) {
   // read line by line making directories
   string line;
   while(dir_list >> line) {
-    //cout << line << endl;
     mkdir(line, root);
   }
 
@@ -238,6 +233,7 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
 
   if(!dsk) {
     cout << "Out of space" << endl;
+    dsk->err = true;
     return NULL;
   }
 
@@ -309,19 +305,19 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
     }
 
     int last_slash = file_path.find_last_of("/");
-    // cout << file_path.substr(last_slash+1) << endl;
-    //Node* file = new Node(file_path.substr(last_slash+1), FILE_NODE); // this is seg faulting?
-    //file->SetTime(date);
-    //cout << file->name << endl;
+    string name = file_path.substr(last_slash+1);
+    //cout << name << endl;
+    Node* file = new Node(name, FILE_NODE); // this is seg faulting?
+    file->SetTime(date);
     // todo: re-implement alloc blocks here
-    //file->blocks = alloc_blocks(dsk, size, block_size);
+    file->blocks = alloc_blocks(dsk, size, block_size);
     // this seg faults
 
     // todo: implement ldisk merge
-    //disk_merge(dsk);
+    disk_merge(dsk);
 
     // todo: implement insert file node
-    //insert_file_node(root, file_path, file);
+    insert_file_node(root, file_path, file);
   }
 }
 
