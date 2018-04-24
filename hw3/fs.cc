@@ -728,8 +728,6 @@ int main(int argc, char* argv[]) {
       cout << "Unknown command: " << command << endl;
     }
 
-
-    assert(curr_dir->type == DIR_NODE);
     print_dir_path(curr_dir);
     cout << " > ";
   }
