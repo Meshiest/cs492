@@ -81,7 +81,6 @@ public:
   File* blocks;
   Node* parent;
   NodeType type;
-private:
   struct tm time;
 };
 
@@ -620,6 +619,10 @@ void show_prfiles(Node* file, unsigned long block_size) {
   print_dir_path(file->parent);
   cout << file->name << endl;
   cout << "\tsize = " << file->size << endl;
+
+  char timestr[100] = {0};
+  strftime(timestr, sizeof(timestr)-1, "%c", &file->time);
+  cout << "\ttime = " << timestr << endl;
 
   cout << "\tblocks = ";
   if(file->blocks) {
