@@ -104,12 +104,6 @@ void Node::SetTime(struct tm made) {
   this->time = made;
 }
 
-/*Node* Node::find_child(string path) {
-  for(auto it = begin(this->children); it != end(this->children); ++it) {
-    // not sure how to check the type of a generic in c++
-  }
-}*/
-
 void mkdir(string path, Node* root) {
   assert(root->type == DIR_NODE);
   int split = path.find('/');
@@ -533,6 +527,59 @@ void deletec(Node* file, Disk* dsk, int block_size) {
   delete(file);
 }
 
+void shrink(Disk* disk, Node* file, int size, unsigned long block_size) {
+  if(!size)
+    return;
+
+  File* prev;
+  File* last = file->blocks;
+  while(last->next) {
+    prev = last;
+    last = last->next;
+  }
+
+  if(last->bytes_used > size) {
+    last->bytes_used -= size;
+  } else {
+    int new_size = size - last->bytes_used;
+    free_block(disk, last->addr / block_size);
+    disk_merge(disk);
+
+    if(prev)
+      prev->next = NULL;
+    delete(last);
+
+    shrink(disk, file, new_size, block_size);
+  }
+}
+
+void remove(Node* dir, string filename, int size, Disk* disk, unsigned long block_size) {
+  Node* file = find_node_from_path(filename, dir, NULL);
+  if(!file || file->type == DIR_NODE) {
+    cout << filename << ": no such file" << endl;
+    return;
+  }
+
+  File* blocks = file->blocks;
+  if(!blocks) {
+    cout << filename << " is empty" << endl;
+    return;
+  }
+
+  if(file->size < size) {
+    cout << filename << " is smaller than " << size;
+    return;
+  }
+
+  shrink(disk, file, size, block_size); 
+  
+  file->size -= size;
+  if(!file->size) {
+    file->blocks = NULL;
+  }
+}
+
+
 int main(int argc, char* argv[]) {
   // create files to open
   ifstream file_list, dir_list;
@@ -630,11 +677,18 @@ int main(int argc, char* argv[]) {
       } else {
         string filename = after.substr(0, spacePos);
         int space = atoi(after.substr(spacePos + 1).c_str());
-        cout << "append '" << filename << "' + " << space << endl;
         append(curr_dir, filename, space, idisk, block_size);
       }
-    } else if(command.compare("remove") == 0) {
-      cout << "remove" << endl;
+    } else if(command.compare(0, 6, "remove") == 0) {
+      string after = command.substr(7);
+      int spacePos = after.find(' ');
+      if(spacePos == string::npos) {
+        cout << "Usage: remove <filename> <bytes>" << endl;
+      } else {
+        string filename = after.substr(0, spacePos);
+        int space = atoi(after.substr(spacePos + 1).c_str());
+        remove(curr_dir, filename, space, idisk, block_size);
+      }
     } else if(command.compare("prdisk") == 0) {
       cout << "prdisk" << endl;
     } else if(command.compare("prfiles") == 0) {
