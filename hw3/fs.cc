@@ -111,7 +111,7 @@ void mkdir(string path, Node* root) {
   if(split != string::npos) {
     string sub = path.substr(0, split);
 
-  if(sub.compare(".") == 0) {
+  if(sub.compare(".") == 0 && (sub.substr(1).compare("") != 0)) {
     mkdir(sub.substr(1), root);
     return;
   }
@@ -130,6 +130,9 @@ void mkdir(string path, Node* root) {
     mkdir(path.substr(split+1), create);
 
   } else if(split == string::npos) {
+    if(path.compare(".") == 0) {
+      return;
+    }
     Node* create = new Node(path, DIR_NODE, root);
     root->children.push_back(create);
   }
@@ -163,19 +166,16 @@ void insert_file_node(Node* root, string path, Node* file) {
       return;
     }
 
-   // todo: loop through `root->children` to find a
-   // directory that matches `dir`
-   // Then insert_file_node on that directory
-   // I started this with Node::find_child
+    Node* child;
     for(auto item : root->children) {
-      Node* child = item;
+      child = item;
       if(child->type == DIR_NODE && (child->name.compare(dir) == 0)) {
         insert_file_node(child, path.substr(index+1), file);
         return;
       }
     }
-
-    assert(false && "Couldn't find directory for file. Were your file_list.txt and dir_list.txt generated together?");
+    cout << child->name;
+    //assert(false && "Couldn't find directory for file. Were your file_list.txt and dir_list.txt generated together?");
   } else {
     file->parent = root;
     root->children.push_back(file);
@@ -190,7 +190,11 @@ Node* parse_dirs(ifstream& dir_list) {
   // read line by line making directories
   string line;
   while(dir_list >> line) {
-    mkdir(line, root);
+    if(line.compare(0, 2, "./") == 0) {
+      mkdir(line.substr(2), root);
+    } else {
+      mkdir(line, root);
+    }
   }
 
   return root;
@@ -572,8 +576,8 @@ void remove(Node* dir, string filename, int size, Disk* disk, unsigned long bloc
     return;
   }
 
-  shrink(disk, file, size, block_size); 
-  
+  shrink(disk, file, size, block_size);
+
   file->size -= size;
   if(!file->size) {
     file->blocks = NULL;
@@ -588,7 +592,7 @@ unsigned long calc_fragmentation(Node* node, unsigned long block_size) {
 
     while(last->next)
       last = last->next;
-      
+
     return block_size - last->bytes_used;
   } else {
     unsigned long sum = 0;
@@ -611,6 +615,53 @@ void print_disk(Disk* disk, Node* root, unsigned long block_size) {
   cout << "fragmentation: " << calc_fragmentation(root, block_size) << " bytes" << endl;
 }
 
+void show_prfiles(Node* file, unsigned long block_size) {
+  print_dir_path(file->parent);
+  cout << file->name << endl;
+  cout << "\tsize = " << file->size << endl;
+
+  cout << "\tblocks = ";
+  if(file->blocks) {
+    vector<unsigned long> blocks;
+
+    for(File* block = file->blocks; block != NULL; block = block->next) {
+      blocks.push_back(block->addr / block_size);
+    }
+
+    if(blocks.size() == 0) {
+      cout << "none";
+    } else {
+      int from = blocks[0];
+      int to = from;
+      for(auto next : blocks) {
+        if(next - to == 1) {
+          to = next;
+        } else {
+          cout << from << "-" << to;
+        }
+      }
+      if(from != to) {
+        cout << from << "-" << to;
+      } else {
+        cout << from;
+      }
+    }
+
+  } else {
+    cout << "none";
+  }
+  cout << endl;
+}
+
+void prfiles(Node* root, unsigned long block_size) {
+  for(auto child : root->children) {
+    if(child->type == DIR_NODE) {
+      prfiles(child, block_size);
+    } else {
+      show_prfiles(child, block_size);
+    }
+  }
+}
 
 int main(int argc, char* argv[]) {
   // create files to open
@@ -724,7 +775,7 @@ int main(int argc, char* argv[]) {
     } else if(command.compare("prdisk") == 0) {
       print_disk(idisk, root, block_size);
     } else if(command.compare("prfiles") == 0) {
-      cout << "prfiles" << endl;
+      prfiles(root, block_size);
     } else {
       cout << "Unknown command: " << command << endl;
     }
