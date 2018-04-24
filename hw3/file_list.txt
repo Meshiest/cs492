@@ -307,8 +307,7 @@
 6502353        8 -rw-r--r--    1 jonathanpavlik   staff                  32 Apr  8 18:44 ./.git/refs/remotes/origin/HEAD
 8601528        8 -rw-r--r--    1 jonathanpavlik   staff                  41 Apr 24 12:44 ./.git/refs/remotes/origin/master
 6502368        8 -rw-r--r--    1 jonathanpavlik   staff                  15 Apr 15 20:31 ./.gitignore
-8605272        0 -rw-r--r--    1 jonathanpavlik   staff                   0 Apr 24 13:29 ./file_list.txt
-6502371        8 -rw-r--r--    1 jonathanpavlik   staff                  16 Apr  8 18:44 ./hw1/.gitignore
+8605272        0 -rw-r--r--    1 jonathanpavlik    staff                  16 Apr  8 18:44 ./hw1/.gitignore
 6502373        8 -rw-r--r--    1 jonathanpavlik   staff                3650 Apr  8 18:44 ./hw1/analysis.txt
 6502374       24 -rw-r--r--    1 jonathanpavlik   staff                9455 Apr  8 18:44 ./hw1/main.cpp
 6502372        8 -rw-r--r--    1 jonathanpavlik   staff                 587 Apr  8 18:44 ./hw1/Makefile

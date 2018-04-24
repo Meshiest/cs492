@@ -106,6 +106,9 @@ void Node::SetTime(struct tm made) {
 
 void mkdir(string path, Node* root) {
   assert(root->type == DIR_NODE);
+  if(path.compare(0, 2, "./") == 0) {
+    path = path.substr(2);
+  }
   int split = path.find('/');
 
   if(split != string::npos) {
@@ -119,7 +122,7 @@ void mkdir(string path, Node* root) {
     // if directory exists put new director in
     for(auto child : root->children) {
       if(child->name.compare(sub) == 0) {
-        mkdir(sub.substr(1), child);
+        mkdir(path.substr(split+1), child);
         return;
       }
     }
@@ -174,7 +177,7 @@ void insert_file_node(Node* root, string path, Node* file) {
         return;
       }
     }
-    cout << child->name;
+    //cout << child->name;
     //assert(false && "Couldn't find directory for file. Were your file_list.txt and dir_list.txt generated together?");
   } else {
     file->parent = root;
@@ -190,11 +193,7 @@ Node* parse_dirs(ifstream& dir_list) {
   // read line by line making directories
   string line;
   while(dir_list >> line) {
-    if(line.compare(0, 2, "./") == 0) {
-      mkdir(line.substr(2), root);
-    } else {
-      mkdir(line, root);
-    }
+    mkdir(line, root);
   }
 
   return root;
@@ -274,7 +273,7 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
   }
 
   if(!dsk) {
-    cout << "Out of space" << endl;
+    cout << "Out of space please" << endl;
     File* alloc_err = new File(NULL, 0, 0);
     alloc_err->alloc = true;
     return alloc_err;
@@ -469,7 +468,7 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
     int fill_space = free_space > size ? size : free_space;
     last->next = alloc_blocks(d, size - fill_space, block_size);
 
-    if(last->next && last->next->alloc) {
+    if(last->alloc || last->next && last->next->alloc) {
       last->next = NULL;
       return;
     }

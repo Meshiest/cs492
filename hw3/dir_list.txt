@@ -185,5 +185,6 @@
 ./.git/refs/tags
 ./hw1
 ./hw2
+./hw2/test
 ./hw3
 ./lab1
