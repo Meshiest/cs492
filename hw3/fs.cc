@@ -436,6 +436,7 @@ Node* cd(string path, Node* cur) {
 
   if(found->type == FILE_NODE) {
     cout << found->name << " is a file, cannot cd into a file" << endl;
+    return cur;
   }
 
   return found;
