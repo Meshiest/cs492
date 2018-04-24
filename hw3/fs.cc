@@ -573,7 +573,7 @@ void remove(Node* dir, string filename, int size, Disk* disk, unsigned long bloc
   }
 
   if(file->size < size) {
-    cout << filename << " is smaller than " << size;
+    cout << filename << " is smaller than " << size << endl;
     return;
   }
 
