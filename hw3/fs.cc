@@ -459,20 +459,23 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
   if(!last) {
     f->blocks = alloc_blocks(d, size, block_size);
     disk_merge(d);
+
     if(!f->blocks->alloc) {
       f->blocks = NULL;
       return;
     }
   } else {
+    cout << "here" << endl;
     while(last->next != NULL) last = last->next;
     int free_space = block_size - last->bytes_used;
     int fill_space = free_space > size ? size : free_space;
     last->next = alloc_blocks(d, size - fill_space, block_size);
-    if(last->next->alloc) {
-      last->next = NULL;
+    cout << "here2" << endl;
+    if(last->alloc) {
+      last = NULL;
       return;
     }
-
+    cout << "test" << endl;
     last->bytes_used += fill_space;
   }
 
