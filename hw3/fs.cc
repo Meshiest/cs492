@@ -566,12 +566,13 @@ int main(int argc, char* argv[]) {
     } else if(command.compare(0, 6, "delete") == 0) {
       cout << "delete" << endl;
     } else if(command.compare(0, 6, "append") == 0) {
-      int spacePos = command.find(' ');
+      string after = command.substr(7);
+      int spacePos = after.find(' ');
       if(spacePos == string::npos) {
         cout << "Usage: append <filename> <bytes>" << endl;
       } else {
-        string filename = command.substr(0, spacePos);
-        int space = atoi(command.substr(spacePos + 1).c_str());
+        string filename = after.substr(0, spacePos);
+        int space = atoi(after.substr(spacePos + 1).c_str());
         cout << "append '" << filename << "' + " << space << endl;
         append(curr_dir, filename, space, idisk, block_size);
       }
