@@ -465,22 +465,72 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
       return;
     }
   } else {
-    cout << "here" << endl;
     while(last->next != NULL) last = last->next;
     int free_space = block_size - last->bytes_used;
     int fill_space = free_space > size ? size : free_space;
     last->next = alloc_blocks(d, size - fill_space, block_size);
-    cout << "here2" << endl;
-    if(last->alloc) {
-      last = NULL;
+
+    if(last->next && last->next->alloc) {
+      last->next = NULL;
       return;
     }
-    cout << "test" << endl;
+
     last->bytes_used += fill_space;
   }
 
   f->size += size;
   f->SetTime(now());
+}
+
+void create(string path, Node* curdir) {
+  Node* file = new Node(path, FILE_NODE);
+  file->SetTime(now());
+  insert_file_node(curdir, path, file);
+}
+
+void deletec(Node* file, Disk* dsk, int block_size) {
+  if(!file) {
+    return;
+  }
+
+  if(file->type == DIR_NODE) {
+    if(file->children.size() != 0) {
+      cout << "Error: directory is not empty" << endl;
+      return;
+    }
+  } else {
+    Disk* last = dsk;
+    for(File* block = file->blocks; block != NULL; block = block->next) {
+      assert(block->addr % block_size == 0);
+      last = free_block(last, block->addr / block_size);
+    }
+    disk_merge(dsk);
+  }
+
+  Node* parent = file->parent;
+  assert(parent->type == DIR_NODE);
+  int child_index = -1;
+  int iter = 0;
+  for(auto child : parent->children) {
+    if(child == file) {
+      child_index = iter;
+      break;
+    }
+    iter++;
+  }
+
+  assert(child_index != -1);
+  parent->children.erase(parent->children.begin() + child_index);
+
+  if(file->type == FILE_NODE) {
+    parent->SetTime(now());
+  }
+
+  if(file->type == DIR_NODE) {
+    file->children.clear();
+  }
+
+  delete(file);
 }
 
 int main(int argc, char* argv[]) {
@@ -569,9 +619,9 @@ int main(int argc, char* argv[]) {
     } else if(command.compare(0, 5, "mkdir") == 0) {
       mkdir(command.substr(6), curr_dir);
     } else if(command.compare(0, 6, "create") == 0) {
-      cout << "create" << endl;
+      create(command.substr(7), curr_dir);
     } else if(command.compare(0, 6, "delete") == 0) {
-      cout << "delete" << endl;
+      deletec(find_node_from_path(command.substr(7), curr_dir, NULL), idisk, block_size);
     } else if(command.compare(0, 6, "append") == 0) {
       string after = command.substr(7);
       int spacePos = after.find(' ');
