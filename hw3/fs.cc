@@ -4,6 +4,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <queue>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -37,14 +38,14 @@ public:
   File* next;
   unsigned long addr;
   int bytes_used;
-  bool alloc;
+  //bool alloc;
 };
 
 File::File(File* next, unsigned long addr, int bytes_used) {
   this->next = next;
   this->addr = addr;
   this->bytes_used = bytes_used;
-  this->alloc = false;
+  //this->alloc = false;
 }
 
 // enums for diff node types
@@ -273,10 +274,11 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
   }
 
   if(!dsk) {
-    cout << "Out of space please" << endl;
-    File* alloc_err = new File(NULL, 0, 0);
+    cout << "Out of space please alloc more disk space" << endl;
+    exit(EXIT_FAILURE);
+    /*File* alloc_err = new File(NULL, 0, 0);
     alloc_err->alloc = true;
-    return alloc_err;
+    return alloc_err;*/
   }
 
   unsigned long blocks_needed = size/block_size;
@@ -291,7 +293,7 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     File* list = make_files(dsk->id, dsk->num_blocks, block_size, &last);
 
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
-    if(last->next->alloc) {
+    /*if(last->next->alloc) {
       for(int i = dsk->num_blocks - 1; i >= 0; --i) {
         free_block(dsk, dsk->id + i);
       }
@@ -304,7 +306,7 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
       File* alloc_err = new File(NULL, 0, 0);
       alloc_err->alloc = true;
       return alloc_err;
-    }
+    }*/
 
     return list;
   } else {
@@ -458,20 +460,20 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
     f->blocks = alloc_blocks(d, size, block_size);
     disk_merge(d);
 
-    if(!f->blocks->alloc) {
+    /*if(!f->blocks->alloc) {
       f->blocks = NULL;
       return;
-    }
+    }*/
   } else {
     while(last->next != NULL) last = last->next;
     int free_space = block_size - last->bytes_used;
     int fill_space = free_space > size ? size : free_space;
     last->next = alloc_blocks(d, size - fill_space, block_size);
 
-    if(last->alloc || last->next && last->next->alloc) {
+    /*if(last->alloc || last->next && last->next->alloc) {
       last->next = NULL;
       return;
-    }
+    }*/
 
     last->bytes_used += fill_space;
   }
@@ -662,6 +664,17 @@ void prfiles(Node* root, unsigned long block_size) {
   }
 }
 
+void dir(Node* root, int space) {
+  for(auto child : root->children) {
+    cout << string(space, '-') << child->name << endl;
+    if(child->type == DIR_NODE) {
+      dir(child, space+2);
+    }
+  }
+
+  return;
+}
+
 int main(int argc, char* argv[]) {
   // create files to open
   ifstream file_list, dir_list;
@@ -738,7 +751,8 @@ int main(int argc, char* argv[]) {
       cout << "goodbye" << endl;
       break;
     } else if(command.compare("dir") == 0) {
-      cout << "dir" << endl;
+      cout << "/" << endl;
+      dir(root, 2);
     } else if(command.compare("ls") == 0) {
       ls(curr_dir);
     } else if(command.compare("cd..") == 0) {
