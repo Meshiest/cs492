@@ -579,6 +579,37 @@ void remove(Node* dir, string filename, int size, Disk* disk, unsigned long bloc
   }
 }
 
+unsigned long calc_fragmentation(Node* node, unsigned long block_size) {
+  if(node->type == FILE_NODE) {
+    File* last = node->blocks;
+    if(!last)
+      return 0;
+
+    while(last->next)
+      last = last->next;
+      
+    return block_size - last->bytes_used;
+  } else {
+    unsigned long sum = 0;
+
+    for(auto item : node->children)
+      sum += calc_fragmentation(item, block_size);
+
+    return sum;
+  }
+}
+
+void print_disk(Disk* disk, Node* root, unsigned long block_size) {
+  while(disk) {
+    cout << (disk->used ? "In use: " : "Free: ")
+      << disk->id << "-" << disk->id + disk->num_blocks - 1
+      << endl;
+    disk = disk->next;
+  }
+
+  cout << "fragmentation: " << calc_fragmentation(root, block_size) << " bytes" << endl;
+}
+
 
 int main(int argc, char* argv[]) {
   // create files to open
@@ -690,7 +721,7 @@ int main(int argc, char* argv[]) {
         remove(curr_dir, filename, space, idisk, block_size);
       }
     } else if(command.compare("prdisk") == 0) {
-      cout << "prdisk" << endl;
+      print_disk(idisk, root, block_size);
     } else if(command.compare("prfiles") == 0) {
       cout << "prfiles" << endl;
     } else {
