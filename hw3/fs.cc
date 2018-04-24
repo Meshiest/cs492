@@ -448,6 +448,7 @@ Node* cd(string path, Node* cur) {
 }
 
 void append(Node* dir, string filename, int size, Disk* d, unsigned long block_size) {
+  assert(dir->type == DIR_NODE);
   Node* f = find_node_from_path(filename, dir, NULL);
   if(!f || f->type == DIR_NODE) {
     cout << filename << ": no such file" << endl;
@@ -463,7 +464,7 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
       return;
     }
   } else {
-    while(last->next) last = last->next;
+    while(last->next != NULL) last = last->next;
     int free_space = block_size - last->bytes_used;
     int fill_space = free_space > size ? size : free_space;
     last->next = alloc_blocks(d, size - fill_space, block_size);
@@ -474,6 +475,9 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
 
     last->bytes_used += fill_space;
   }
+
+  f->size += size;
+  f->SetTime(now());
 }
 
 int main(int argc, char* argv[]) {
