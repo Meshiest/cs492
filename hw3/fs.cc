@@ -79,7 +79,7 @@ public:
   unsigned long size;
   File* blocks;
   Node* parent;
-  NodeType type;
+  NodeType type; // this could be done better in c++17
   struct tm time;
 };
 
@@ -106,12 +106,16 @@ void Node::SetTime(struct tm made) {
 
 // Create a new directory
 void mkdir(string path, Node* root) {
+  // check type of node is directory node
   assert(root->type == DIR_NODE);
+  // ignore ./
   if(path.compare(0, 2, "./") == 0) {
     path = path.substr(2);
   }
+  // find index of closest /
   int split = path.find('/');
 
+  // if a slash is found
   if(split != string::npos) {
     string sub = path.substr(0, split);
 
@@ -134,6 +138,7 @@ void mkdir(string path, Node* root) {
     mkdir(path.substr(split+1), create);
 
   } else if(split == string::npos) {
+    // slash is not found
     if(path.compare(".") == 0) {
       return;
     }
@@ -146,7 +151,9 @@ void mkdir(string path, Node* root) {
 void disk_merge(Disk* d) {
   Disk* next;
 
+  // while there is a next disk to go to
   while ((next = d->next)) {
+    // merge the num of blocks
     if (d->used == next->used) {
       d->num_blocks += next->num_blocks;
       d->next = next->next;
@@ -160,9 +167,11 @@ void disk_merge(Disk* d) {
 
 // Insert a file at the given path
 void insert_file_node(Node* root, string path, Node* file) {
+  // check node types
   assert(root->type == DIR_NODE);
   assert(file->type == FILE_NODE);
 
+  // insert file nodes in to directoies
   auto index = path.find('/');
   if(index != string::npos) {
     auto dir = path.substr(0, index);
@@ -208,9 +217,11 @@ File* make_files(int from, int num, int block_size, File** last) {
     return NULL;
   }
 
+  // create the file blocks
   File* first = new File(NULL, from * block_size, block_size);
   File* prev = first;
   for(int i = 1; i < num; ++i) {
+    // create with proper memory alloc
     File* block = new File(NULL, (from + i) * block_size, block_size);
     prev->next = block;
     prev = block;
@@ -230,10 +241,12 @@ Disk* free_block(Disk* dsk, unsigned block) {
     assert(dsk);
   }
 
+  // check that the disk is used
   assert(dsk->used);
   Disk *oldnext = dsk->next;
   unsigned long oldnblocks = dsk->num_blocks;
 
+  // cancer for setting proper connections before removing
   Disk* before = dsk;
   Disk* free_node = new Disk(NULL, 0, 0, false);
   Disk* after = new Disk(NULL, 0, 0, false);
@@ -257,11 +270,13 @@ Disk* free_block(Disk* dsk, unsigned block) {
 
   if(after->num_blocks == 0) {
     assert(!after->next || after->id == after->next->id);
+    // check was inserted correctly
     if(free_node) {
       free_node->next = after->next;
     } else {
       before->next = after->next;
     }
+    // clean it up
     delete(after);
   }
 
@@ -274,6 +289,7 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     return NULL;
   }
 
+  // go to the end
   while(dsk && dsk->used) {
     dsk = dsk->next;
   }
@@ -283,17 +299,22 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     exit(EXIT_FAILURE);
   }
 
+  // figure out how many blocks are needed for given block size
   unsigned long blocks_needed = size/block_size;
   if(size % block_size) {
     blocks_needed++;
   }
 
+  // if we need more blocks than the dsk has
   if(blocks_needed >= dsk->num_blocks) {
+    // set to used
     dsk->used = true;
 
     File* last;
+    // make all the files
     File* list = make_files(dsk->id, dsk->num_blocks, block_size, &last);
 
+    // properly create all blocks
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
 
     return list;
@@ -304,13 +325,16 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     assert(used_node_size != 0);
     assert(free_node_size != 0);
 
+    // free some blocks
     Disk* next = dsk->next;
     Disk* free_blocks = new Disk(next, dsk->id + used_node_size, free_node_size, false);
     dsk->next = free_blocks;
     free_blocks->next = next;
 
+    // set disk to used
     dsk->used = true;
 
+    // make files differnetly depending on whether block_size is multiple of size
     if(size % block_size != 0) {
       File* last = NULL;
       File* list = make_files(dsk->id, used_node_size-1, block_size, &last);
@@ -336,11 +360,12 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
   string dump, day, month, timestamp, datetime, file_path;
 
   // read the things we need
-  // c++ doesn't do this well
+  // c++ doesn't do this well unless I felt like overloading the operator
   while(file_list >>
       dump >> dump >> dump >> dump >> dump >> dump >>
       size >> month >> day >> timestamp >> file_path) {
 
+    // convert read date to proper format
     datetime = month + " " +  day + " " + timestamp;
     struct tm date = {0};
     int timeoryear = timestamp.find(":");
@@ -351,16 +376,18 @@ void parse_file_list(ifstream& file_list, Node* root, Disk* dsk, int block_size)
       date.tm_year = now().tm_year;
     }
 
+    // find last slash in file path
     int last_slash = file_path.find_last_of("/");
     string name = file_path.substr(last_slash+1);
     //cout << name << endl;
+    // create the file named of path after last /
     Node* file = new Node(name, FILE_NODE); // this is seg faulting?
     file->SetTime(date);
-    // todo: re-implement alloc blocks here
+    // allocate the num of blocks it uses
     file->blocks = alloc_blocks(dsk, size, block_size);
-
+    // merge the disks
     disk_merge(dsk);
-
+    // insert the file node into the proper place so it shows up
     insert_file_node(root, file_path, file);
   }
 }
@@ -447,13 +474,16 @@ Node* cd(string path, Node* cur) {
 // increases a file size and allocates blocks
 void append(Node* dir, string filename, int size, Disk* d, unsigned long block_size) {
   assert(dir->type == DIR_NODE);
+  // find the node
   Node* f = find_node_from_path(filename, dir, NULL);
   if(!f || f->type == DIR_NODE) {
+    // can't append to directory
     cout << filename << ": no such file" << endl;
     return;
   }
 
   File* last = f->blocks;
+  // make sure blocks are allocated properly for file
   if(!last) {
     f->blocks = alloc_blocks(d, size, block_size);
     disk_merge(d);
@@ -463,9 +493,11 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
       return;
     }*/
   } else {
+    // see how much space we have left to use
     while(last->next != NULL) last = last->next;
     int free_space = block_size - last->bytes_used;
     int fill_space = free_space > size ? size : free_space;
+    // alloc blocks
     last->next = alloc_blocks(d, size - fill_space, block_size);
 
     /*if(last->alloc || last->next && last->next->alloc) {
@@ -476,6 +508,7 @@ void append(Node* dir, string filename, int size, Disk* d, unsigned long block_s
     last->bytes_used += fill_space;
   }
 
+  // inc size and set time changed
   f->size += size;
   f->SetTime(now());
 }
@@ -487,13 +520,13 @@ void create(string path, Node* curdir) {
   insert_file_node(curdir, path, file);
 }
 
-// Deletes a directory
+// Deletes a directory or file
 void deletec(Node* file, Disk* dsk, int block_size) {
   if(!file) {
     return;
   }
 
-  if(file->type == DIR_NODE) {
+  if(file->type == DIR_NODE) { // dirs need to be empty to be deleted
     if(file->children.size() != 0) {
       cout << "Error: directory is not empty" << endl;
       return;
@@ -502,8 +535,9 @@ void deletec(Node* file, Disk* dsk, int block_size) {
     Disk* last = dsk;
     for(File* block = file->blocks; block != NULL; block = block->next) {
       assert(block->addr % block_size == 0);
-      last = free_block(last, block->addr / block_size);
+      last = free_block(last, block->addr / block_size); // free all blocks it was using
     }
+    // re-adjust
     disk_merge(dsk);
   }
 
@@ -511,6 +545,7 @@ void deletec(Node* file, Disk* dsk, int block_size) {
   assert(parent->type == DIR_NODE);
   int child_index = -1;
   int iter = 0;
+  // need child index to remove from vector
   for(auto& child : parent->children) {
     if(child == file) {
       child_index = iter;
@@ -527,6 +562,7 @@ void deletec(Node* file, Disk* dsk, int block_size) {
   }
 
   if(file->type == DIR_NODE) {
+    // if dir empty vector
     file->children.clear();
   }
 
@@ -538,6 +574,7 @@ void shrink(Disk* disk, Node* file, int size, unsigned long block_size) {
   if(!size)
     return;
 
+  // find file
   File* prev;
   File* last = file->blocks;
   while(last->next) {
@@ -548,6 +585,7 @@ void shrink(Disk* disk, Node* file, int size, unsigned long block_size) {
   if(last->bytes_used > size) {
     last->bytes_used -= size;
   } else {
+    // reduce it's block size and re-adjust
     int new_size = size - last->bytes_used;
     free_block(disk, last->addr / block_size);
     disk_merge(disk);
@@ -556,6 +594,7 @@ void shrink(Disk* disk, Node* file, int size, unsigned long block_size) {
       prev->next = NULL;
     delete(last);
 
+    // fix rest
     shrink(disk, file, new_size, block_size);
   }
 }
@@ -568,12 +607,14 @@ void remove(Node* dir, string filename, int size, Disk* disk, unsigned long bloc
     return;
   }
 
+  // if blocks asctulaly contains data
   File* blocks = file->blocks;
   if(!blocks) {
     cout << filename << " is empty" << endl;
     return;
   }
 
+  // we can actually shrink the file that much
   if(file->size < size) {
     cout << filename << " is smaller than " << size << endl;
     return;
@@ -581,6 +622,7 @@ void remove(Node* dir, string filename, int size, Disk* disk, unsigned long bloc
 
   shrink(disk, file, size, block_size);
 
+  // subtract the file size to refelct
   file->size -= size;
   if(!file->size) {
     file->blocks = NULL;
@@ -624,13 +666,16 @@ void print_disk(Disk* disk, Node* root, unsigned long block_size) {
 // print file info
 void show_prfiles(Node* file, unsigned long block_size) {
   print_dir_path(file->parent);
+  // print size
   cout << file->name << endl;
   cout << "\tsize = " << file->size << endl;
 
+  // print time
   char timestr[100] = {0};
   strftime(timestr, sizeof(timestr)-1, "%c", &file->time);
   cout << "\ttime = " << timestr << endl;
 
+  // print block location info 
   cout << "\tblocks = ";
   if(file->blocks) {
     vector<unsigned long> blocks;
@@ -664,7 +709,7 @@ void show_prfiles(Node* file, unsigned long block_size) {
   cout << endl;
 }
 
-// prints all the files in the given directory
+// prints all files' data
 void prfiles(Node* root, unsigned long block_size) {
   for(auto& child : root->children) {
     if(child->type == DIR_NODE) {
@@ -675,7 +720,7 @@ void prfiles(Node* root, unsigned long block_size) {
   }
 }
 
-// prints the current path
+// prints bfs of al files
 void dir(Node* root, int space) {
   queue<Node*> order;
   for(auto& child : root->children) {
@@ -768,6 +813,7 @@ int main(int argc, char* argv[]) {
   print_dir_path(curr_dir);
   cout << " > ";
 
+  // commands
   while(getline(cin, command)) {
 
     if(command.compare("exit") == 0) {
