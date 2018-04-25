@@ -61,7 +61,6 @@ struct tm now() {
   return *t;
 }
 
-// node that takes a typename so we can use with our enums
 class Node {
 
 public:
@@ -120,7 +119,7 @@ void mkdir(string path, Node* root) {
   }
 
     // if directory exists put new director in
-    for(auto child : root->children) {
+    for(auto& child : root->children) {
       if(child->name.compare(sub) == 0) {
         mkdir(path.substr(split+1), child);
         return;
@@ -170,7 +169,7 @@ void insert_file_node(Node* root, string path, Node* file) {
     }
 
     Node* child;
-    for(auto item : root->children) {
+    for(auto& item : root->children) {
       child = item;
       if(child->type == DIR_NODE && (child->name.compare(dir) == 0)) {
         insert_file_node(child, path.substr(index+1), file);
@@ -275,9 +274,6 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
   if(!dsk) {
     cout << "Out of space please alloc more disk space" << endl;
     exit(EXIT_FAILURE);
-    /*File* alloc_err = new File(NULL, 0, 0);
-    alloc_err->alloc = true;
-    return alloc_err;*/
   }
 
   unsigned long blocks_needed = size/block_size;
@@ -292,20 +288,6 @@ File* alloc_blocks(Disk* dsk, unsigned long size, int block_size) {
     File* list = make_files(dsk->id, dsk->num_blocks, block_size, &last);
 
     last->next = alloc_blocks(dsk->next, size - dsk->num_blocks *block_size, block_size);
-    /*if(last->next->alloc) {
-      for(int i = dsk->num_blocks - 1; i >= 0; --i) {
-        free_block(dsk, dsk->id + i);
-      }
-      File* freeme = list;
-      while(!freeme->next->alloc) { // go through list freeing blocks
-        File* next = freeme->next;
-        delete(freeme);
-        freeme = next;
-      }
-      File* alloc_err = new File(NULL, 0, 0);
-      alloc_err->alloc = true;
-      return alloc_err;
-    }*/
 
     return list;
   } else {
@@ -395,14 +377,17 @@ void print_dir_path(Node* cur) {
   vector<Node*> path = dir_node_path(cur);
   path.erase(path.begin());
 
-  for(auto p : path) {
-    cout << p->name << "/";
+  for(auto& p : path) {
+    cout << p->name;
+    if(p->type == DIR_NODE) {
+      cout << "/";
+    }
   }
 }
 
 void ls(Node* dir) {
   assert(dir->type == DIR_NODE);
-  for(auto item : dir->children) {
+  for(auto& item : dir->children) {
     cout << item->name << endl;
   }
 }
@@ -412,7 +397,7 @@ Node* find_node_from_path(string path, Node* root, Node* org) {
 
   if(split == string::npos) {
 
-    for(auto item : root->children) {
+    for(auto& item : root->children) {
       Node* child = item;
       if(child->name.compare(path) == 0) {
         return child;
@@ -510,7 +495,7 @@ void deletec(Node* file, Disk* dsk, int block_size) {
   assert(parent->type == DIR_NODE);
   int child_index = -1;
   int iter = 0;
-  for(auto child : parent->children) {
+  for(auto& child : parent->children) {
     if(child == file) {
       child_index = iter;
       break;
@@ -597,7 +582,7 @@ unsigned long calc_fragmentation(Node* node, unsigned long block_size) {
   } else {
     unsigned long sum = 0;
 
-    for(auto item : node->children)
+    for(auto& item : node->children)
       sum += calc_fragmentation(item, block_size);
 
     return sum;
@@ -637,7 +622,7 @@ void show_prfiles(Node* file, unsigned long block_size) {
     } else {
       int from = blocks[0];
       int to = from;
-      for(auto next : blocks) {
+      for(auto& next : blocks) {
         if(next - to == 1) {
           to = next;
         } else {
@@ -658,7 +643,7 @@ void show_prfiles(Node* file, unsigned long block_size) {
 }
 
 void prfiles(Node* root, unsigned long block_size) {
-  for(auto child : root->children) {
+  for(auto& child : root->children) {
     if(child->type == DIR_NODE) {
       prfiles(child, block_size);
     } else {
@@ -668,11 +653,22 @@ void prfiles(Node* root, unsigned long block_size) {
 }
 
 void dir(Node* root, int space) {
-  for(auto child : root->children) {
-    cout << string(space, '-') << child->name << endl;
-    if(child->type == DIR_NODE) {
-      dir(child, space+2);
+  queue<Node*> order;
+  for(auto& child : root->children) {
+    cout << string(space, '-');
+    print_dir_path(child);
+    cout << endl;
+    order.push(child);
+  }
+
+  Node* cur;
+  while(!order.empty()) {
+    cur = order.front();
+    //cout << "for testing " << cur->name << endl;
+    if(cur->type == DIR_NODE) {
+      dir(cur, space+2);
     }
+    order.pop();
   }
 
   return;
